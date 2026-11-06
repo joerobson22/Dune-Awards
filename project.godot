@@ -15,7 +15,10 @@ config/description="An awards ceremony for our Dune: Imperium games."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.039, 0.027, 0.02, 1)
-boot_splash/show_image=false
+boot_splash/image="res://boot_splash.png"
+boot_splash/stretch_mode=1
+boot_splash/minimum_display_time=1500
+config/icon="res://icon.png"
 
 [display]
 

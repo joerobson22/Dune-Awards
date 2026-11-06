@@ -187,6 +187,13 @@ Everything visual lives in **`scripts/config.gd`**:
 **Want the films' own lettering?** Fan fonts such as *Dune Rise* are free for personal use.
 Put the `.ttf` in `fonts/` and set `FONT_DISPLAY` to its path. Nothing else changes.
 
+**Icon and boot splash.** `icon.png` and `boot_splash.png` are drawn from the same art as the
+title slide. After changing colours or fonts, regenerate both so they still match:
+
+```
+godot --path . -s res://tools/render_branding.gd
+```
+
 The canvas is a fixed 1920 × 1080 and scales to any screen; other shapes get thin bars.
 
 ---
@@ -195,6 +202,8 @@ The canvas is a fixed 1920 × 1080 and scales to any screen; other shapes get th
 
 ```
 project.godot                 open this in Godot
+icon.png, boot_splash.png     project icon and launch screen
+tools/render_branding.gd      redraws the icon and splash from the title art
 data/
   games.csv                   ← the history, one row per player per game
   players.csv                 ← display names and colours
