@@ -204,6 +204,8 @@ Inside a slide:
 - `play(tween, on_skip)` registers a long animation, so a click finishes it, not skips it.
 - `add_award_card_steps(get_awards())` adds the gold winner cards.
 - `get_awards()` returns what the finale lists.
+- `build()` runs again whenever the slide is shown, e.g. after going back. Keep what it
+  makes in vars starting with `_`: lists, maps and node links there are emptied first.
 
 ### C. A live race chart
 
