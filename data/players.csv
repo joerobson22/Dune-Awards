@@ -1,5 +1,5 @@
-player,display_name,colour
-HedgeKnight,HedgeKnight,#5FB37F
-Donaldthefrog,Donaldthefrog,#D9573F
-Grandalf,Grandalf,#EDE3CC
-LoomingGoblin,LoomingGoblin,#7393E6
+player,display_name,person,colour
+HedgeKnight,HedgeKnight,Dad,#D9483B
+Donaldthefrog,Donaldthefrog,Will,#4FAE6E
+Grandalf,Grandalf,Gdad,#5B83E0
+LoomingGoblin,LoomingGoblin,Joe,#E6C437

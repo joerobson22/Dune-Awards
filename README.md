@@ -35,21 +35,42 @@ Presentation clickers send Page Up and Page Down, so they work too.
 | # | Slide | Clicks |
 |---|---|---|
 | 1 | Title | |
-| 2 | *Part one: The long war* | |
-| 3 | **Lisan Al-Gaib**, with **Points the Way** and **Chaumurky** | 1: play all 53 games live. 2–4: one award card each |
-| 4 | **Shai Hulud**, with **Treachery** | 1: play all games live. 2–3: one award card each |
-| 5 | *Part two: The four boxes* | |
-| 6–9 | **Duke of Arrakis**, **Leader of IX**, **Tleilax Master**, **Imperium Lord** | 4th, 3rd, 2nd, then 1st place, one per click |
-| 10 | The spice must flow: every winner on one screen | |
+| 2 | *Part one: The players* | |
+| 3 | **Favourite alliances**: a column each for Emperor, Spacing Guild, Bene Gesserit, Fremen | One alliance per click |
+| 4 | **Silly awards**: most 4th places, most 3rd places, lowest VP finish | One award per click |
+| 5 | **Muad'Dib**: a point for leading each core stat | One stat per click, then the award card |
+| 6 | **Dune 1 awards**: best win rate as Baron, Leto, Paul and Rabban | One leader per click |
+| 7 | *Part two: The long war* | |
+| 8 | **Lisan Al-Gaib**, with **Points the Way** and **Chaumurky** | 1: play all 53 games live. 2–4: one award card each |
+| 9 | **Shai Hulud**, with **Treachery** | 1: play all games live. 2–3: one award card each |
+| 10 | *Part three: The four boxes* | |
+| 11–14 | **Duke of Arrakis**, **Leader of IX**, **Tleilax Master**, **Imperium Lord** | 4th, 3rd, 2nd, then 1st place, one per click |
+| 15 | The spice must flow: every winner on one screen | |
 
-**The live wins chart (slide 3).** A line per player grows game by game. The leaderboard
+**Favourite alliances (slide 3).** Each column fills with the players whose favourite it
+was, from the "Fave Alliance" row of `core_stats.csv`. An alliance nobody picked says "No one".
+- The emblems are drawn by the program. The game's own art can't go in a public repo.
+- To use real icons, drop `emperor.png`, `spacing_guild.png`, `bene_gesserit.png` and
+  `fremen.png` into `assets/alliances/`. Square PNGs with transparency look best.
+
+**Silly awards (slide 4).** Each panel lists all four players, with the "winner" lit gold.
+Lowest VP finish names the leader and game number under each score.
+
+**Muad'Dib (slide 5).** Every number in `core_stats.csv` becomes a tile. Each click names
+that stat's leader and gives them a point in the table. Ties give everyone tied a point.
+Highest wins for every stat by default; see section 4 to change that.
+
+**Dune 1 awards (slide 6).** Win rate as each leader across all games. Level rates go to
+the player with more wins. Players who never played that leader show "never played".
+
+**The live wins chart (slide 8).** A line per player grows game by game. The leaderboard
 beside it re-sorts as the lead changes.
 - A win that extends a streak flashes **gold**, labelled "3 IN A ROW".
 - A tie-breaker win flashes the colour of the method: **spice** orange, **solari** silver,
   **water** blue, **Chaumurky** purple. These match the cell colours in the spreadsheet.
 - The Tie-breaks column keeps a coloured dot for each one.
 
-**The live VP chart (slide 4).** Running total VPs per player. Each new single-game record
+**The live VP chart (slide 9).** Running total VPs per player. Each new single-game record
 flashes red: that is the Treachery race.
 
 **Ties in an award.** Level scores are split by total VPs in the same scope. If players are
@@ -85,20 +106,32 @@ game,expansion,player,leader,vp,spice,solari,water,chaumurky,winner,win_method
 VPs, then Chaumurky, then spice, solari, water. That rule was checked against all 53 games in
 the spreadsheet and agrees with every one.
 
-### `data/players.csv`: names and colours
+### `data/players.csv`: names, people and colours
 
 ```
-player,display_name,colour
-HedgeKnight,HedgeKnight,#5FB37F
+player,display_name,person,colour
+HedgeKnight,HedgeKnight,Dad,#D9483B
 ```
 
-Change `display_name` to show a real name on screen (for example `Grandalf` → `Grandad`)
-without touching the game history. `colour` is the player's line and accent colour.
+- `display_name` is shown on screen. Change it (e.g. `Grandalf` → `Grandad`) without
+  touching the game history.
+- `person` links the tag to the name used in `core_stats.csv`.
+- `colour` is the player's line and accent colour. Tonight: HedgeKnight red, Donaldthefrog
+  green, Grandalf blue, LoomingGoblin yellow.
 
-### `data/core_stats.csv`
+### `data/core_stats.csv`: one row per person per stat
 
-The app's top-level averages from the spreadsheet (conflicts won, SMF, favourite alliance,
-and so on), kept for completeness. No slide uses them yet. Section 4 shows how to add one.
+```
+person,group,stat,value
+Joe,Core,Avg. Conflicts won,2.84
+Joe,Core,Fave Alliance,Fremen
+```
+
+The app's averages from the spreadsheet. `group` is shown above each Muad'Dib tile
+(`Core`, `IX`, `Immortality`, `Uprising`). Every `person` must appear in `players.csv`.
+- A new stat row appears on the Muad'Dib slide automatically.
+- Write numbers without a `%` sign. Stats whose name starts with `%` show one on screen.
+- Text values (like `Fave Alliance`) are skipped by Muad'Dib.
 
 ---
 
@@ -140,6 +173,11 @@ e.g. `data.wins("IX")`:
 | `data.longest_streak()` | Longest run of consecutive wins |
 | `data.best_single_game()` | Highest VPs in one game |
 | `data.leader_plays("Paul")` | Games played as a leader |
+| `data.finishes(4)` | Times finishing in a given place (4 = last) |
+
+Two more return a record per player, not a single number:
+- `data.leader_record("Paul")`: player → `{plays, wins}`.
+- `data.lowest_game_of("Grandalf")`: `{vp, leader, game}` for that player's worst game.
 
 **A score that is not on the list?** Add a function beside these in `game_data.gd`. Copy
 `wins()` and change the counting line. It only has to return a Dictionary of player → number.
@@ -163,6 +201,28 @@ To tell a new story game by game, extend `RaceSlide` the way `wins_race_slide.gd
 `vp_race_slide.gd` do. You fill in the chart values, the leaderboard columns, and
 `apply_game()`, which runs as each game is reached. Call `chart.flash(...)` and
 `table.flash_cell(...)` there for highlights.
+
+### D. The new multi-award slides
+
+These take their settings in `awards.gd`, so most changes need no new file.
+
+**`SillyAwardsSlide.new([...])`**: up to three panels. Each entry:
+```gdscript
+{"eyebrow": "Fed to the worm", "title": "Most 4th places",
+    "values": data.finishes(4), "unit": "4th place"},
+```
+Add `"lowest_wins": true` when the smallest number wins. Add `"detail": func(p): ...` for a
+line under each score.
+
+**`CoreStatsSlide.new({...})`**: the Muad'Dib slide.
+- `"labels"`: stat name in the CSV → name on screen, e.g. `"Avg. SMF": "Spice Must Flow"`.
+- `"lower_wins"`: stat names where the lowest value earns the point.
+- `"skip"`: stat names to leave out.
+
+**`LeaderAwardsSlide.new(["Baron", "Leto", "Paul", "Rabban"])`**: one column per leader.
+List any leaders from `games.csv`; four fit best.
+
+**`FaveAllianceSlide.new()`**: reads the alliances from `ALLIANCES` in `config.gd`.
 
 ### Section dividers
 
@@ -206,8 +266,9 @@ icon.png, boot_splash.png     project icon and launch screen
 tools/render_branding.gd      redraws the icon and splash from the title art
 data/
   games.csv                   ← the history, one row per player per game
-  players.csv                 ← display names and colours
-  core_stats.csv              the app's averages (not yet on a slide)
+  players.csv                 ← display names, people and colours
+  core_stats.csv              ← the app's averages: Muad'Dib and alliances
+assets/alliances/             optional alliance icons (see section 2)
 scripts/
   awards.gd                   ★ the running order: add awards here
   config.gd                   ★ colours, fonts, timings, file paths
@@ -217,6 +278,10 @@ scripts/
     slide.gd                  base class every slide extends
     title_slide.gd            opening title
     section_slide.gd          "Part one / Part two" dividers
+    fave_alliance_slide.gd    favourite alliances, one column each
+    silly_awards_slide.gd     most 4ths, most 3rds, lowest VP finish
+    core_stats_slide.gd       Muad'Dib: a point per core stat
+    leader_awards_slide.gd    Dune 1: win rate per leader
     race_slide.gd             shared layout for the live chart slides
     wins_race_slide.gd        Lisan Al-Gaib, Points the Way, Chaumurky
     vp_race_slide.gd          Shai Hulud, Treachery
@@ -224,7 +289,7 @@ scripts/
     finale_slide.gd           all winners
     example_custom_slide.gd   template for a slide of your own (not in the show)
   ui/                         building blocks: chart, leaderboard, award card,
-                              gold sparks, desert background, fonts
+                              alliance emblems, gold sparks, desert background, fonts
 fonts/                        Michroma, Cormorant Garamond, Cinzel (SIL Open Font Licence)
 ```
 
@@ -236,4 +301,6 @@ fonts/                        Michroma, Cormorant Garamond, Cinzel (SIL Open Fon
   `game` or `vp` cell is not a whole number.
 - **A player appears twice, or with an unexpected colour**: their tag in `games.csv` does
   not exactly match `players.csv` (check capitals and spaces).
+- **"core_stats.csv: … has no matching player"**: add that name to the `person` column of
+  `players.csv`.
 - **Editing the CSV in Excel**: save as *CSV UTF-8*. Keep the header row as it is.

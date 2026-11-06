@@ -12,6 +12,8 @@ extends RefCounted
 const GAMES_CSV := "res://data/games.csv"
 ## Display name and line colour for each player tag.
 const PLAYERS_CSV := "res://data/players.csv"
+## The app's per-person stats (Muad'Dib award, favourite alliances).
+const CORE_STATS_CSV := "res://data/core_stats.csv"
 
 ## Expansion codes used in games.csv, in the order they were played,
 ## mapped to the name shown on screen. Add a new line for a new box.
@@ -54,6 +56,15 @@ const METHOD_COLOURS := {
 	"Water": Color("3fc8f2"),
 	"Chaumurky": Color("b86ce6"),
 }
+## The four alliances, in reveal order. "key" names the optional icon
+## file: put res://assets/alliances/<key>.png in place to use your own
+## artwork instead of the drawn emblem. "colour" tints that column.
+const ALLIANCES := [
+	{"name": "Emperor", "key": "emperor", "colour": Color("b8423a")},
+	{"name": "Spacing Guild", "key": "spacing_guild", "colour": Color("d9822b")},
+	{"name": "Bene Gesserit", "key": "bene_gesserit", "colour": Color("9b5fc0")},
+	{"name": "Fremen", "key": "fremen", "colour": Color("3f8fc9")},
+]
 const STREAK_COLOUR := Color("f2d98d")
 const RECORD_COLOUR := Color("e5483a")  # Treachery: a new single-game record
 
