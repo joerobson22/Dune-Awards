@@ -8,6 +8,7 @@ func build() -> void:
 		"Every award, and who took it home") + 34.0
 	var awards := []
 	for s in ceremony:
+		if s == self: break
 		awards.append_array(s.get_awards())
 	if awards.is_empty():
 		return

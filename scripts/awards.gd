@@ -37,7 +37,7 @@ static func running_order(data: GameData) -> Array[Slide]:
 		}),
 		LeaderAwardsSlide.new(["Baron", "Rabban", "Paul", "Leto", "Ariana", "Memnon", "Ilban"]),
 		HonoursSlide.new([      # devotion to one leader
-			{"eyebrow": "House Harkonnen", "title": "The Kwisatz Haderach",
+			{"eyebrow": "House Harkonnen", "title": "Na' Baron",
 				"values": data.leader_wins("Baron"), "unit": "win",
 				"tiebreak": _neg(data.leader_plays("Baron")),
 				"detail": func(p): return _record_detail(data, "Baron", p),
@@ -51,7 +51,7 @@ static func running_order(data: GameData) -> Array[Slide]:
 			"subtitle": "Two honours for mastering a single leader"}),
 
 		SectionSlide.new("Part two", "The long war",
-			"Honours earned across every game we have played"),
+			"Honours earned across every game"),
 		WinsRaceSlide.new(),      # Lisan Al-Gaib · Points the Way · Chaumurky
 		VpRaceSlide.new(),        # Shai Hulud · Treachery
 
@@ -73,6 +73,7 @@ static func running_order(data: GameData) -> Array[Slide]:
 		# ───────────────────────────────────────────────────────────
 
 		FinaleSlide.new(),
+		KwisatzSlide.new(),
 	]
 
 
