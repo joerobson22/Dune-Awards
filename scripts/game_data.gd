@@ -1,6 +1,6 @@
 class_name GameData
 extends RefCounted
-## Loads games.csv and players.csv, and answers questions about them.
+## Loads games.csv, players.csv and core_stats.csv, and answers questions about them.
 ## Every award reads its numbers from the helpers in the STATS section,
 ## so a new award usually needs one of these, or a new one beside them.
 
@@ -11,8 +11,13 @@ var games: Array[Dictionary] = []
 var players: Array[String] = []
 var display_names := {}
 var colours := {}
+## Real name -> player tag, from the "person" column of players.csv.
+var person_to_player := {}
+## The app's per-person stats, in file order:
+## [{group, stat, values: {player tag -> String}}]
+var core_stats: Array[Dictionary] = []
 
-const _FALLBACK_COLOURS := ["#5FB37F", "#D9573F", "#EDE3CC", "#7393E6", "#C98AD8", "#E0B04A"]
+const _FALLBACK_COLOURS := ["#D9483B", "#4FAE6E", "#5B83E0", "#E6C437", "#C98AD8", "#E0B04A"]
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -24,7 +29,10 @@ func load_all() -> String:
 	var err := _load_players(Config.PLAYERS_CSV)
 	if err != "":
 		return err
-	return _load_games(Config.GAMES_CSV)
+	err = _load_games(Config.GAMES_CSV)
+	if err != "":
+		return err
+	return _load_core_stats(Config.CORE_STATS_CSV)
 
 
 func _read_csv(path: String) -> Array:
@@ -56,6 +64,9 @@ func _load_players(path: String) -> String:
 		players.append(tag)
 		var shown: String = row.get("display_name", "")
 		display_names[tag] = shown if shown != "" else tag
+		var person: String = row.get("person", "")
+		if person != "":
+			person_to_player[person] = tag
 		var hex: String = row.get("colour", row.get("color", ""))
 		if hex != "" and Color.html_is_valid(hex):
 			colours[tag] = Color.html(hex)
@@ -110,6 +121,25 @@ func _load_games(path: String) -> String:
 			colours[tag] = Color.html(_FALLBACK_COLOURS[i % _FALLBACK_COLOURS.size()])
 	if games.is_empty():
 		return "games.csv has no games in it."
+	return ""
+
+
+## core_stats.csv: person,group,stat,value — one row per person per stat.
+## People are matched to player tags through players.csv.
+func _load_core_stats(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		return ""  # optional
+	var by_stat := {}
+	for row in _read_csv(path):
+		var person: String = row.get("person", "")
+		var tag: String = person_to_player.get(person, "")
+		if tag == "":
+			return "core_stats.csv: '%s' has no matching player. Add them to the person column of players.csv." % person
+		var stat: String = row.get("stat", "")
+		if not by_stat.has(stat):
+			by_stat[stat] = {"group": row.get("group", ""), "stat": stat, "values": {}}
+			core_stats.append(by_stat[stat])
+		by_stat[stat]["values"][tag] = row.get("value", "")
 	return ""
 
 
@@ -219,6 +249,66 @@ func streak_spans(expansion := "") -> Dictionary:
 			else:
 				run[p] = 0
 	return out
+
+
+## Finishing place of every player in a game (1 = winner). Players are
+## ordered by VP, then the winner, then spice, solari and water. Anyone
+## still level shares the better place.
+func placements(g: Dictionary) -> Dictionary:
+	var keyed := []
+	for r in g["results"]:
+		keyed.append({"player": r["player"], "key": [r["vp"], 1 if r["winner"] else 0,
+			r["spice"], r["solari"], r["water"]]})
+	var out := {}
+	for a in keyed:
+		var better := 0
+		for b in keyed:
+			if _key_greater(b["key"], a["key"]):
+				better += 1
+		out[a["player"]] = better + 1
+	return out
+
+
+func _key_greater(a: Array, b: Array) -> bool:
+	for i in a.size():
+		if a[i] != b[i]:
+			return a[i] > b[i]
+	return false
+
+
+## How many times each player finished in a given place (e.g. 4 = last).
+func finishes(place: int, expansion := "") -> Dictionary:
+	var d := _zeroes()
+	for g in games_in(expansion):
+		var pl := placements(g)
+		for p in pl:
+			if pl[p] == place:
+				d[p] += 1
+	return d
+
+
+## Each player's lowest VP score in a game: {vp, leader, game} (first time).
+func lowest_game_of(player: String, expansion := "") -> Dictionary:
+	var out := {}
+	for g in games_in(expansion):
+		for r in g["results"]:
+			if r["player"] == player and (out.is_empty() or r["vp"] < out["vp"]):
+				out = {"vp": r["vp"], "leader": r["leader"], "game": g["number"]}
+	return out
+
+
+## Games played and won with one leader: player -> {plays, wins}.
+func leader_record(leader: String, expansion := "") -> Dictionary:
+	var d := {}
+	for p in players:
+		d[p] = {"plays": 0, "wins": 0}
+	for g in games_in(expansion):
+		for r in g["results"]:
+			if r["leader"] == leader:
+				d[r["player"]]["plays"] += 1
+				if r["winner"]:
+					d[r["player"]]["wins"] += 1
+	return d
 
 
 ## Highest VPs in a single game.

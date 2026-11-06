@@ -1,5 +1,65 @@
-person,Avg. Conflicts won,Avg. SMF,Fave Alliance,Avg. Tech,Avg. Shipments,Avg. Graft,Avg. TTP,Avg. RTP,Avg. Contracts,Avg. Sandworms,Avg. Spies
-Dad,2.3,0.75,Emperor,1.69,1.74,2.81,3.73,6.15,1.06,2.33,3.33
-Will,2.3,1.15,Bene Gesserit,2.28,2.26,3.59,4.12,6.85,2.91,1.55,7
-Gdad,1.7,0.38,Spacing Guild,1.21,2.08,1.92,3.84,6.4,0.6,0.2,2.4
-Joe,2.84,0.87,Fremen,1.8,1.65,2.64,3.86,5.14,2,1.88,3.63
+person,group,stat,value
+Dad,Core,Avg. Conflicts won,2.3
+Will,Core,Avg. Conflicts won,2.3
+Gdad,Core,Avg. Conflicts won,1.7
+Joe,Core,Avg. Conflicts won,2.84
+Dad,Core,Avg. SMF,0.75
+Will,Core,Avg. SMF,1.15
+Gdad,Core,Avg. SMF,0.38
+Joe,Core,Avg. SMF,0.87
+Dad,Core,Fave Alliance,Emperor
+Will,Core,Fave Alliance,Bene Gesserit
+Gdad,Core,Fave Alliance,Spacing Guild
+Joe,Core,Fave Alliance,Fremen
+Dad,Core,Avg. Spice Remaining,4.93
+Will,Core,Avg. Spice Remaining,4.6
+Gdad,Core,Avg. Spice Remaining,5.74
+Joe,Core,Avg. Spice Remaining,5.07
+Dad,Core,Avg. Swordmaster,4.67
+Will,Core,Avg. Swordmaster,4.81
+Gdad,Core,Avg. Swordmaster,5.17
+Joe,Core,Avg. Swordmaster,4.32
+Dad,Core,% Games w/ SM,89.1
+Will,Core,% Games w/ SM,88.8
+Gdad,Core,% Games w/ SM,96.8
+Joe,Core,% Games w/ SM,98.8
+Dad,Core,Avg. High Council,4.17
+Will,Core,Avg. High Council,4.82
+Gdad,Core,Avg. High Council,5.81
+Joe,Core,Avg. High Council,5.83
+Dad,Core,% Games w/ HC,80.2
+Will,Core,% Games w/ HC,88.8
+Gdad,Core,% Games w/ HC,69.4
+Joe,Core,% Games w/ HC,71.1
+Dad,IX,Avg. Tech,1.69
+Will,IX,Avg. Tech,2.28
+Gdad,IX,Avg. Tech,1.21
+Joe,IX,Avg. Tech,1.8
+Dad,IX,Avg. Shipments,1.74
+Will,IX,Avg. Shipments,2.26
+Gdad,IX,Avg. Shipments,2.08
+Joe,IX,Avg. Shipments,1.65
+Dad,Immortality,Avg. Graft,2.81
+Will,Immortality,Avg. Graft,3.59
+Gdad,Immortality,Avg. Graft,1.92
+Joe,Immortality,Avg. Graft,2.64
+Dad,Immortality,Avg. TTP,3.73
+Will,Immortality,Avg. TTP,4.12
+Gdad,Immortality,Avg. TTP,3.84
+Joe,Immortality,Avg. TTP,3.86
+Dad,Immortality,Avg. RTP,6.15
+Will,Immortality,Avg. RTP,6.85
+Gdad,Immortality,Avg. RTP,6.4
+Joe,Immortality,Avg. RTP,5.14
+Dad,Uprising,Avg. Contracts,1.06
+Will,Uprising,Avg. Contracts,2.91
+Gdad,Uprising,Avg. Contracts,0.6
+Joe,Uprising,Avg. Contracts,2
+Dad,Uprising,Avg. Sandworms,2.33
+Will,Uprising,Avg. Sandworms,1.55
+Gdad,Uprising,Avg. Sandworms,0.2
+Joe,Uprising,Avg. Sandworms,1.88
+Dad,Uprising,Avg. Spies,3.33
+Will,Uprising,Avg. Spies,7
+Gdad,Uprising,Avg. Spies,2.4
+Joe,Uprising,Avg. Spies,3.63
