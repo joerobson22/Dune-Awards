@@ -9,6 +9,7 @@ const CARD_SIZE := Vector2(1160, 600)
 var data: GameData
 var _dim: ColorRect
 var _card: Panel
+var _tw: Tween
 var _box: VBoxContainer
 
 
@@ -43,6 +44,12 @@ func _ready() -> void:
 func show_award(info: Dictionary) -> void:
 	var first := not visible
 	visible = true
+	# A quick click can swap awards mid-animation: stop the old reveal
+	# before its box is freed, or it would touch freed nodes.
+	if _tw and _tw.is_valid():
+		_tw.kill()
+		modulate.a = 1.0
+		_card.scale = Vector2.ONE
 	if _box:
 		_box.queue_free()
 	_box = VBoxContainer.new()
@@ -95,6 +102,7 @@ func show_award(info: Dictionary) -> void:
 	for n in hidden:
 		n.modulate.a = 0.0
 	var tw := create_tween()
+	_tw = tw
 	if first:
 		_card.scale = Vector2(0.94, 0.94)
 		tw.set_parallel()
@@ -107,7 +115,7 @@ func show_award(info: Dictionary) -> void:
 	tw.tween_interval(0.7)
 	tw.tween_callback(func():
 		for n in hidden:
-			create_tween().tween_property(n, "modulate:a", 1.0, 0.6)
+			n.create_tween().tween_property(n, "modulate:a", 1.0, 0.6)
 		add_child(GoldBurst.new(Rect2(Vector2(560, 470), Vector2(800, 90)))))
 
 

@@ -1,29 +1,41 @@
 class_name LeaderAwardsSlide
 extends Slide
-## THE DUNE 1 AWARD: one column per leader, showing each player's win
-## rate with that leader. Each click reveals the next leader; the best
-## win rate is lit gold. Level rates are split by more wins.
+## THE LEADER AWARD: a row per leader, a column per player, each cell a
+## win rate. Each click reveals the next leader: the best win rate is lit
+## gold and scores a point. Most points takes the Leader Award.
 ##
-##   LeaderAwardsSlide.new(["Baron", "Leto", "Paul", "Rabban"])
+##   LeaderAwardsSlide.new(["Baron", "Rabban", "Paul", ...])
 ## Leader names must match the leader column of games.csv.
+##
+## Level rates are split by more wins, then shared (a point each). A
+## leader nobody has won with scores no points.
+
+const NAME_W := 300.0
+const HEAD_H := 64.0
+const FOOT_H := 92.0
 
 var leaders: Array = []
-var titles := {}   # optional: leader -> award name shown on the finale
-var _cols := []
+var title := "Leader Award"
+var _rows := []
+var _points := {}        # player -> Label in the footer
+var _score := {}         # player -> points shown so far
+var _col_x := {}         # player -> column x
+var _col_w := 0.0
+var _foot_y := 0.0
 
 
-func _init(leader_names: Array, award_titles := {}) -> void:
+func _init(leader_names: Array, award_title := "Leader Award") -> void:
 	leaders = leader_names
-	titles = award_titles
+	title = award_title
 
 
+## The win-rate ranking for one leader. Never-played rates are -1.
 func _ranking(leader: String) -> Array:
 	var rec := data.leader_record(leader)
 	var rate := {}
 	var wins := {}
 	for p in data.players:
 		var r: Dictionary = rec[p]
-		# Players who never picked this leader sit below everyone who did.
 		rate[p] = float(r["wins"]) / r["plays"] if r["plays"] > 0 else -1.0
 		wins[p] = r["wins"]
 	var out := data.rank(rate, wins)
@@ -33,120 +45,210 @@ func _ranking(leader: String) -> Array:
 	return out
 
 
-func get_awards() -> Array:
-	var out := []
+## Who scores the point for a leader: the top rank, if they ever won.
+func _leader_winners(ranking: Array) -> Array:
+	if ranking.is_empty() or ranking[0]["wins"] == 0:
+		return []
+	return ranking.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
+
+
+func _final_points() -> Dictionary:
+	var pts := {}
+	for p in data.players:
+		pts[p] = 0
 	for l in leaders:
-		var r := _ranking(l)
-		var winners: Array = r.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
-		out.append({"title": titles.get(l, "Dune 1 · %s" % l), "winners": winners,
-			"stat": "%d%% win rate as %s (%d of %d)" % [roundi(r[0]["value"] * 100), l, r[0]["wins"], r[0]["plays"]]})
-	return out
+		for p in _leader_winners(_ranking(l)):
+			pts[p] += 1
+	return pts
+
+
+func get_awards() -> Array:
+	var r := data.rank(_final_points(), data.total_vp())
+	var winners: Array = r.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
+	return [{"title": title, "winners": winners,
+		"stat": "best win rate with %d of %d leaders" % [int(r[0]["value"]), leaders.size()]}]
 
 
 func build() -> void:
-	var top := add_header("The originals", "The Dune 1 award",
-		"Who wins most often with the four leaders of the first film?") + 34.0
-	var n := leaders.size()
-	var gap := 24.0
-	var w := (W - MARGIN * 2 - gap * (n - 1)) / n
-	var h := H - 94.0 - top
-	for i in n:
-		_cols.append(_make_column(leaders[i], Rect2(MARGIN + i * (w + gap), top, w, h)))
+	var top := add_header("The great houses", "The " + title,
+		"A point for the best win rate with each leader. Most points wins.") + 30.0
+	var bottom := H - 94.0
+	var players: Array = data.players
+	_col_w = (W - MARGIN * 2 - NAME_W) / players.size()
+	var row_h := (bottom - top - HEAD_H - FOOT_H) / leaders.size()
+	add(UI.panel(Rect2(MARGIN, top, W - MARGIN * 2, bottom - top)))
+
+	# Column heads: one per player, in their colour.
+	for i in players.size():
+		var p: String = players[i]
+		var x := MARGIN + NAME_W + i * _col_w
+		_col_x[p] = x
+		var n := UI.label(data.name_of(p), UI.Face.SERIF_BOLD, 30, data.colour_of(p), HORIZONTAL_ALIGNMENT_CENTER)
+		n.position = Vector2(x, top + 12)
+		n.size = Vector2(_col_w, 40)
+		add(n)
+	var e := UI.eyebrow("Leader", 12, Config.SAND_DIM)
+	e.position = Vector2(MARGIN + 32, top + 26)
+	e.size = Vector2(200, 20)
+	add(e)
+	_rule(top + HEAD_H, 0.35)
+
+	for i in leaders.size():
+		var y := top + HEAD_H + i * row_h
+		_rows.append(_make_row(leaders[i], y, row_h))
+		if i > 0:
+			_rule(y, 0.1)
 		add_step(_reveal.bind(i))
 
+	# Footer: the running points.
+	_foot_y = bottom - FOOT_H
+	_rule(_foot_y, 0.35)
+	var f := UI.eyebrow("Points", 15, Config.GOLD)
+	f.position = Vector2(MARGIN + 32, _foot_y + 36)
+	f.size = Vector2(200, 22)
+	add(f)
+	for p in players:
+		_score[p] = 0
+		var v := UI.label("0", UI.Face.NUMBER, 46, Config.SAND, HORIZONTAL_ALIGNMENT_CENTER)
+		v.position = Vector2(_col_x[p], _foot_y + 12)
+		v.size = Vector2(_col_w, 68)
+		v.pivot_offset = v.size * 0.5
+		add(v)
+		_points[p] = v
+	add_award_card_steps(get_awards())
 
-func _make_column(leader: String, rect: Rect2) -> Dictionary:
-	var st := UI.panel_style(Config.GOLD, 0.22, 0.8)
-	var panel := UI.panel(rect, st)
-	add(panel)
-	var pad := 28.0
-	var e := UI.eyebrow("Played as", 12, Config.SAND_DIM)
-	e.position = Vector2(pad, 28)
-	e.size = Vector2(rect.size.x - pad * 2, 20)
-	panel.add_child(e)
-	var t := UI.label(leader.to_upper(), UI.Face.DISPLAY, 34, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 4)
-	t.material = UI.gold_material()
-	t.position = Vector2(pad - 2, 52)
-	t.size = Vector2(rect.size.x - pad * 2, 52)
-	panel.add_child(t)
-	var o := Ornament.new(rect.size.x * 0.55)
-	o.position = Vector2(pad, 112)
-	panel.add_child(o)
-	var placeholder := UI.label("·  ·  ·", UI.Face.DISPLAY, 26, Config.SAND_FAINT)
-	placeholder.position = Vector2(pad, 150)
-	placeholder.size = Vector2(200, 60)
-	panel.add_child(placeholder)
 
-	var body := Control.new()
-	body.position = Vector2(0, 144)
-	body.size = Vector2(rect.size.x, rect.size.y - 150)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.modulate.a = 0.0
-	panel.add_child(body)
+func _rule(y: float, alpha: float) -> void:
+	var r := ColorRect.new()
+	r.color = Color(Config.GOLD, alpha)
+	r.position = Vector2(MARGIN + 24, y)
+	r.size = Vector2(W - MARGIN * 2 - 48, 1)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add(r)
+
+
+func _make_row(leader: String, y: float, h: float) -> Dictionary:
 	var ranking := _ranking(leader)
-	var row_h := (body.size.y - 10.0) / maxf(1, ranking.size())
+	var winners := _leader_winners(ranking)
+	var nm := UI.label(leader.to_upper(), UI.Face.DISPLAY, 24, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 3)
+	nm.material = UI.gold_material()
+	nm.position = Vector2(MARGIN + 30, y)
+	nm.size = Vector2(NAME_W - 40, h)
+	nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add(nm)
+
+	var placeholder := UI.label("·  ·  ·", UI.Face.DISPLAY, 22, Config.SAND_FAINT)
+	placeholder.position = Vector2(MARGIN + NAME_W + 28, y)
+	placeholder.size = Vector2(200, h)
+	placeholder.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add(placeholder)
+
+	var cells := Control.new()
+	cells.size = Vector2(W, H)
+	cells.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cells.modulate.a = 0.0
+	add(cells)
 	var bars := []
-	for j in ranking.size():
-		var r: Dictionary = ranking[j]
+	var glows := []
+	for r in ranking:
 		var p: String = r["player"]
-		var y := j * row_h
-		var first: bool = r["rank"] == 1 and r["plays"] > 0
-		if first:
+		var x: float = _col_x[p]
+		var won: bool = p in winners
+		if won:
 			var glow := Panel.new()
 			var gs := UI.panel_style(Config.GOLD, 0.7, 0.0)
-			gs.bg_color = Color(Config.GOLD, 0.08)
+			gs.bg_color = Color(Config.GOLD, 0.09)
 			gs.shadow_size = 0
 			glow.add_theme_stylebox_override("panel", gs)
-			glow.position = Vector2(12, y + 4)
-			glow.size = Vector2(rect.size.x - 24, row_h - 8)
+			glow.position = Vector2(x + 14, y + 6)
+			glow.size = Vector2(_col_w - 28, h - 12)
 			glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			body.add_child(glow)
-		var nm := UI.label(data.name_of(p), UI.Face.SERIF_BOLD, 34, data.colour_of(p) if r["plays"] > 0 else Config.SAND_FAINT)
-		nm.position = Vector2(pad, y + 14)
-		nm.size = Vector2(rect.size.x - pad * 2 - 100, 44)
-		nm.clip_text = true
-		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		body.add_child(nm)
-		var record := "never played" if r["plays"] == 0 else "%d of %d won" % [r["wins"], r["plays"]]
-		var d := UI.label(record, UI.Face.ITALIC, 22, Config.SAND_DIM)
-		d.position = Vector2(pad + 1, y + 56)
-		d.size = Vector2(rect.size.x - pad * 2 - 100, 30)
-		body.add_child(d)
-		var pct := "–" if r["plays"] == 0 else "%d%%" % roundi(r["value"] * 100)
-		var v := UI.label(pct, UI.Face.NUMBER, 40 if first else 32, Config.GOLD_BRIGHT if first else Config.SAND,
+			cells.add_child(glow)
+			glows.append(glow)
+		var played: bool = r["plays"] > 0
+		var pct := UI.label("%d%%" % roundi(r["value"] * 100) if played else "–", UI.Face.NUMBER,
+			32 if won else 28, Config.GOLD_BRIGHT if won else (Config.SAND if played else Config.SAND_FAINT),
 			HORIZONTAL_ALIGNMENT_RIGHT)
-		v.position = Vector2(rect.size.x - pad - 110, y + 10)
-		v.size = Vector2(110, 54)
-		body.add_child(v)
-		# Win-rate gauge under each row.
+		pct.position = Vector2(x + 20, y)
+		pct.size = Vector2(_col_w * 0.42 - 20, h - 6)
+		pct.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cells.add_child(pct)
+		var rec := UI.label("%d of %d" % [r["wins"], r["plays"]] if played else "never played", UI.Face.ITALIC, 22,
+			Config.SAND_DIM if played else Config.SAND_FAINT)
+		rec.position = Vector2(x + _col_w * 0.42 + 14, y)
+		rec.size = Vector2(_col_w * 0.58 - 34, h - 6)
+		rec.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cells.add_child(rec)
+		# A thin win-rate gauge along the foot of the cell.
 		var track := ColorRect.new()
-		track.color = Color(Config.SAND, 0.07)
-		track.position = Vector2(pad, y + row_h - 22)
-		track.size = Vector2(rect.size.x - pad * 2, 4)
-		body.add_child(track)
+		track.color = Color(Config.SAND, 0.06)
+		track.position = Vector2(x + 28, y + h - 16)
+		track.size = Vector2(_col_w - 56, 3)
+		cells.add_child(track)
 		var bar := ColorRect.new()
 		bar.color = data.colour_of(p)
 		bar.position = track.position
-		bar.size = Vector2(0, 4)
-		body.add_child(bar)
+		bar.size = Vector2(0, 3)
+		cells.add_child(bar)
 		bars.append({"bar": bar, "w": track.size.x * maxf(0.0, r["value"])})
-	return {"panel": panel, "style": st, "body": body, "placeholder": placeholder, "bars": bars}
+	var note: Label = null
+	if winners.is_empty():
+		note = UI.label("no one has won with this leader", UI.Face.ITALIC, 20, Config.SAND_DIM)
+		note.position = Vector2(MARGIN + 32, y + h * 0.5 + 10)
+		note.size = Vector2(NAME_W - 40, 26)
+		note.modulate.a = 0.0
+		add(note)
+	return {"placeholder": placeholder, "cells": cells, "bars": bars, "winners": winners,
+		"note": note, "name": nm, "y": y, "h": h}
 
 
 func _reveal(i: int) -> void:
-	var c: Dictionary = _cols[i]
-	var body: Control = c["body"]
-	var st: StyleBoxFlat = c["style"]
+	var c: Dictionary = _rows[i]
 	var tw := tween().set_parallel()
 	tw.tween_property(c["placeholder"], "modulate:a", 0.0, 0.3)
-	tw.tween_property(st, "border_color", Color(Config.GOLD, 0.75), 0.6)
-	tw.tween_property(body, "modulate:a", 1.0, 0.7).set_delay(0.15)
+	tw.tween_property(c["cells"], "modulate:a", 1.0, 0.6).set_delay(0.1)
+	if c["note"]:
+		# Lift the name to make room for the note beneath it.
+		tw.tween_property(c["name"], "position:y", c["y"] - 12, 0.5).set_trans(Tween.TRANS_CUBIC)
+		tw.tween_property(c["note"], "modulate:a", 1.0, 0.6).set_delay(0.3)
 	for b in c["bars"]:
-		tw.tween_property(b["bar"], "size:x", b["w"], 1.1).set_delay(0.3) \
+		tw.tween_property(b["bar"], "size:x", b["w"], 1.0).set_delay(0.25) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	for p in c["winners"]:
+		tw.tween_callback(func():
+			add(GoldBurst.new(Rect2(_col_x[p] + 14, c["y"], _col_w - 28, c["h"]), 60))
+			_add_point(p)).set_delay(0.5)
 	play(tw, func():
 		c["placeholder"].modulate.a = 0.0
-		st.border_color = Color(Config.GOLD, 0.75)
-		body.modulate.a = 1.0
+		c["cells"].modulate.a = 1.0
+		if c["note"]:
+			c["name"].position.y = c["y"] - 12
+			c["note"].modulate.a = 1.0
 		for b in c["bars"]:
-			b["bar"].size.x = b["w"])
+			b["bar"].size.x = b["w"]
+		_sync_points(i))
+
+
+func _add_point(p: String) -> void:
+	_score[p] += 1
+	var v: Label = _points[p]
+	v.text = str(_score[p])
+	v.add_theme_color_override("font_color", Config.GOLD_BRIGHT)
+	v.scale = Vector2(1.35, 1.35)
+	var tw := tween()
+	tw.tween_property(v, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## After a skip: points as they stand once row i is revealed.
+func _sync_points(i: int) -> void:
+	for p in _score:
+		var n := 0
+		for j in i + 1:
+			if p in _rows[j]["winners"]:
+				n += 1
+		_score[p] = n
+		var v: Label = _points[p]
+		v.text = str(n)
+		v.scale = Vector2.ONE
+		if n > 0:
+			v.add_theme_color_override("font_color", Config.GOLD_BRIGHT)
