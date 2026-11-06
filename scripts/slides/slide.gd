@@ -51,7 +51,33 @@ func enter() -> void:
 	add_child(stage)
 	_steps.clear()
 	_running = null
+	_reset_build_state()
 	build()
+
+
+## Going back to a slide builds it again. Lists, maps and node links
+## that build() keeps in a subclass's private vars (_rows, _tiles...)
+## would still point at the old, freed nodes, so they are emptied first.
+## Plain numbers and flags are left for build() to set.
+func _reset_build_state() -> void:
+	var script: Script = get_script()
+	var base := script
+	while base.get_base_script():
+		base = base.get_base_script()
+	var own := {}
+	for prop in base.get_script_property_list():
+		own[prop["name"]] = true
+	for prop in script.get_script_property_list():
+		var key: String = prop["name"]
+		if not key.begins_with("_") or own.has(key) \
+				or not (prop["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE):
+			continue
+		var value = get(key)
+		match typeof(value):
+			TYPE_ARRAY, TYPE_DICTIONARY:
+				value.clear()
+			TYPE_OBJECT:
+				set(key, null)  # may already be freed with the old stage
 
 
 ## Returns false when the slide has nothing left to show.

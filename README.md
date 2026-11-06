@@ -39,13 +39,14 @@ Presentation clickers send Page Up and Page Down, so they work too.
 | 3 | **Favourite alliances**: a column each for Emperor, Spacing Guild, Bene Gesserit, Fremen | One alliance per click |
 | 4 | **Silly awards**: most 4th places, most 3rd places, lowest VP finish | One award per click |
 | 5 | **Muad'Dib**: a point for leading each core stat | One stat per click, then the award card |
-| 6 | **Dune 1 awards**: best win rate as Baron, Leto, Paul and Rabban | One leader per click |
-| 7 | *Part two: The long war* | |
-| 8 | **Lisan Al-Gaib**, with **Points the Way** and **Chaumurky** | 1: play all 53 games live. 2–4: one award card each |
-| 9 | **Shai Hulud**, with **Treachery** | 1: play all games live. 2–3: one award card each |
-| 10 | *Part three: The four boxes* | |
-| 11–14 | **Duke of Arrakis**, **Leader of IX**, **Tleilax Master**, **Imperium Lord** | 4th, 3rd, 2nd, then 1st place, one per click |
-| 15 | The spice must flow: every winner on one screen | |
+| 6 | **Leader Award**: a point for the best win rate with each base leader | One leader per click, then the award card |
+| 7 | **Loyal to the end**: **Na-Baron** (most wins as the Baron) and **Prince of Ix** (best win rate as Rhombur) | One award per click |
+| 8 | *Part two: The long war* | |
+| 9 | **Lisan Al-Gaib**, with **Points the Way** and **Chaumurky** | 1: play all 53 games live. 2–4: one award card each |
+| 10 | **Shai Hulud**, with **Treachery** | 1: play all games live. 2–3: one award card each |
+| 11 | *Part three: The four boxes* | |
+| 12–15 | **Duke of Arrakis**, **Leader of IX**, **Tleilax Master**, **Imperium Lord** | 4th, 3rd, 2nd, then 1st place, one per click |
+| 16 | The spice must flow: every winner on one screen | |
 
 **Favourite alliances (slide 3).** Each column fills with the players whose favourite it
 was, from the "Fave Alliance" row of `core_stats.csv`. An alliance nobody picked says "No one".
@@ -58,19 +59,27 @@ Lowest VP finish names the leader and game number under each score.
 
 **Muad'Dib (slide 5).** Every number in `core_stats.csv` becomes a tile. Each click names
 that stat's leader and gives them a point in the table. Ties give everyone tied a point.
-Highest wins for every stat by default; see section 4 to change that.
+Highest wins by default. Swordmaster and High Council rounds go to the lowest number,
+because getting them earlier is better. Section 4 shows how to change this.
 
-**Dune 1 awards (slide 6).** Win rate as each leader across all games. Level rates go to
-the player with more wins. Players who never played that leader show "never played".
+**Leader Award (slide 6).** A row per leader: Baron, Rabban, Paul, Leto, Ariana, Memnon,
+Ilban. Each cell is a player's win rate with that leader.
+- Each click reveals a leader. The best rate is lit gold and scores a point.
+- Level rates go to the player with more wins, then share the point.
+- A leader nobody has won with (Ilban, so far) scores no point.
+- Most points takes the Leader Award.
 
-**The live wins chart (slide 8).** A line per player grows game by game. The leaderboard
+**Loyal to the end (slide 7).** Two honours for sticking with one leader. Na-Baron counts
+wins as the Baron; level counts go to whoever played him fewer times.
+
+**The live wins chart (slide 9).** A line per player grows game by game. The leaderboard
 beside it re-sorts as the lead changes.
 - A win that extends a streak flashes **gold**, labelled "3 IN A ROW".
 - A tie-breaker win flashes the colour of the method: **spice** orange, **solari** silver,
   **water** blue, **Chaumurky** purple. These match the cell colours in the spreadsheet.
 - The Tie-breaks column keeps a coloured dot for each one.
 
-**The live VP chart (slide 9).** Running total VPs per player. Each new single-game record
+**The live VP chart (slide 10).** Running total VPs per player. Each new single-game record
 flashes red: that is the Treachery race.
 
 **Ties in an award.** Level scores are split by total VPs in the same scope. If players are
@@ -146,10 +155,10 @@ Paste this into the list in `scripts/awards.gd`, where it says *Add new award sl
 
 ```gdscript
 RankingRevealSlide.new({
-    "eyebrow": "The Harkonnen way",
-    "title": "Na-Baron",
-    "subtitle": "Most games played as the Baron",
-    "values": data.leader_plays("Baron"),   # player -> score
+    "eyebrow": "House Atreides",
+    "title": "The Kwisatz Haderach",
+    "subtitle": "Most games played as Paul",
+    "values": data.leader_plays("Paul"),    # player -> score
     "unit": "game",                          # shown as "4 GAMES"
 }),
 ```
@@ -173,6 +182,7 @@ e.g. `data.wins("IX")`:
 | `data.longest_streak()` | Longest run of consecutive wins |
 | `data.best_single_game()` | Highest VPs in one game |
 | `data.leader_plays("Paul")` | Games played as a leader |
+| `data.leader_wins("Paul")` | Games won as a leader |
 | `data.finishes(4)` | Times finishing in a given place (4 = last) |
 
 Two more return a record per player, not a single number:
@@ -194,6 +204,8 @@ Inside a slide:
 - `play(tween, on_skip)` registers a long animation, so a click finishes it, not skips it.
 - `add_award_card_steps(get_awards())` adds the gold winner cards.
 - `get_awards()` returns what the finale lists.
+- `build()` runs again whenever the slide is shown, e.g. after going back. Keep what it
+  makes in vars starting with `_`: lists, maps and node links there are emptied first.
 
 ### C. A live race chart
 
@@ -206,21 +218,26 @@ To tell a new story game by game, extend `RaceSlide` the way `wins_race_slide.gd
 
 These take their settings in `awards.gd`, so most changes need no new file.
 
-**`SillyAwardsSlide.new([...])`**: up to three panels. Each entry:
+**`HonoursSlide.new([...], {heading})`**: two to four award panels side by side. The silly
+awards and "Loyal to the end" both use it. Each entry:
 ```gdscript
 {"eyebrow": "Fed to the worm", "title": "Most 4th places",
     "values": data.finishes(4), "unit": "4th place"},
 ```
-Add `"lowest_wins": true` when the smallest number wins. Add `"detail": func(p): ...` for a
-line under each score.
+The heading is `{"eyebrow": ..., "title": ..., "subtitle": ...}`. Optional entry keys:
+- `"lowest_wins": true` when the smallest number wins.
+- `"tiebreak"`: a second score that splits level players.
+- `"detail": func(p): ...` for a line under each name.
+- `"format": func(v): ...` to show the number differently, e.g. as a percentage.
+- `"summary": func(p): ...` for the line on the finale card.
 
 **`CoreStatsSlide.new({...})`**: the Muad'Dib slide.
 - `"labels"`: stat name in the CSV → name on screen, e.g. `"Avg. SMF": "Spice Must Flow"`.
 - `"lower_wins"`: stat names where the lowest value earns the point.
 - `"skip"`: stat names to leave out.
 
-**`LeaderAwardsSlide.new(["Baron", "Leto", "Paul", "Rabban"])`**: one column per leader.
-List any leaders from `games.csv`; four fit best.
+**`LeaderAwardsSlide.new(["Baron", "Rabban", ...])`**: the Leader Award table. List any
+leaders from `games.csv`; up to about eight rows fit.
 
 **`FaveAllianceSlide.new()`**: reads the alliances from `ALLIANCES` in `config.gd`.
 
@@ -279,9 +296,9 @@ scripts/
     title_slide.gd            opening title
     section_slide.gd          "Part one / Part two" dividers
     fave_alliance_slide.gd    favourite alliances, one column each
-    silly_awards_slide.gd     most 4ths, most 3rds, lowest VP finish
+    honours_slide.gd          side-by-side honours: silly awards, Loyal to the end
     core_stats_slide.gd       Muad'Dib: a point per core stat
-    leader_awards_slide.gd    Dune 1: win rate per leader
+    leader_awards_slide.gd    Leader Award: a point per leader
     race_slide.gd             shared layout for the live chart slides
     wins_race_slide.gd        Lisan Al-Gaib, Points the Way, Chaumurky
     vp_race_slide.gd          Shai Hulud, Treachery

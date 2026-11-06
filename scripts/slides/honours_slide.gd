@@ -1,19 +1,26 @@
-class_name SillyAwardsSlide
+class_name HonoursSlide
 extends Slide
-## Three side-by-side "honours" nobody wants. Each click reveals one:
-## the panel fills with everyone's tally and the "winner" is lit up.
+## Two to four side-by-side honours. Each click reveals one: the panel
+## fills with everyone's score and the winner is lit up.
 ##
-## Each entry in `awards`:
+##   HonoursSlide.new([entry, entry, ...], {eyebrow, title, subtitle})
+##
+## Each entry:
 ##   {eyebrow, title, values: player -> number, unit,
 ##    lowest_wins (optional, default false),
-##    detail (optional): func(player) -> String shown under the number}
+##    tiebreak (optional): player -> number that splits level scores,
+##    detail (optional):  func(player) -> String shown under the name,
+##    format (optional):  func(value) -> String for the number shown,
+##    summary (optional): func(player) -> String for the finale card}
 
 var awards: Array = []
+var header := {}
 var _panels := []
 
 
-func _init(list: Array) -> void:
+func _init(list: Array, heading := {}) -> void:
 	awards = list
+	header = heading
 
 
 func get_awards() -> Array:
@@ -21,32 +28,35 @@ func get_awards() -> Array:
 	for a in awards:
 		var r := _rank(a)
 		var winners: Array = r.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
-		out.append({"title": a["title"], "winners": winners,
-			"stat": _value_text(a, r[0]["player"], r[0]["value"], true)})
+		var stat: String = a["summary"].call(r[0]["player"]) if a.has("summary") \
+			else _value_text(a, r[0]["player"], r[0]["value"], true)
+		out.append({"title": a["title"], "winners": winners, "stat": stat})
 	return out
 
 
 func _rank(a: Dictionary) -> Array:
 	if not a.get("lowest_wins", false):
-		return data.rank(a["values"])
+		return data.rank(a["values"], a.get("tiebreak", {}))
 	var flipped := {}
 	for p in a["values"]:
 		flipped[p] = -a["values"][p]
-	var r := data.rank(flipped)
+	var r := data.rank(flipped, a.get("tiebreak", {}))
 	for x in r:
 		x["value"] = -x["value"]
 	return r
 
 
 func _value_text(a: Dictionary, _p: String, v: float, long := false) -> String:
+	if a.has("format"):
+		return a["format"].call(v)
 	if long:
 		return UI.plural(int(v), a.get("unit", "point"))
 	return str(int(v))
 
 
 func build() -> void:
-	var top := add_header("Honours no one wants", "The sandworm's dinner",
-		"Three awards for the ones who fed the worm") + 34.0
+	var top := add_header(header.get("eyebrow", ""), header.get("title", ""),
+		header.get("subtitle", "")) + 34.0
 	var n := awards.size()
 	var gap := 28.0
 	var w := (W - MARGIN * 2 - gap * (n - 1)) / n

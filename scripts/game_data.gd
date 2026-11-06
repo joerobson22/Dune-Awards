@@ -330,6 +330,16 @@ func leader_plays(leader: String, expansion := "") -> Dictionary:
 	return d
 
 
+## Number of games a player won with a given leader.
+func leader_wins(leader: String, expansion := "") -> Dictionary:
+	var d := _zeroes()
+	for g in games_in(expansion):
+		for r in g["results"]:
+			if r["leader"] == leader and r["winner"]:
+				d[r["player"]] += 1
+	return d
+
+
 ## The leader a player won with most often (ties go to the earlier win).
 func favourite_winning_leader(player: String, expansion := "") -> String:
 	var counts := {}

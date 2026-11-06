@@ -37,8 +37,13 @@ func build() -> void:
 		t.clip_text = true
 		card.add_child(t)
 		var names := " & ".join(a["winners"].map(func(p): return data.name_of(p)))
-		var n := UI.label(names, UI.Face.SERIF_BOLD, name_px, Config.SAND)
-		n.position = Vector2(pad - 2, y0 + 22.0)
+		# Shrink long names (e.g. a shared award) to fit the card.
+		var fit_px := name_px
+		var serif := UI.font(UI.Face.SERIF_BOLD)
+		while fit_px > 24 and serif.get_string_size(names, HORIZONTAL_ALIGNMENT_LEFT, -1, fit_px).x > card_w - pad * 2:
+			fit_px -= 2
+		var n := UI.label(names, UI.Face.SERIF_BOLD, fit_px, Config.SAND)
+		n.position = Vector2(pad - 2, y0 + 22.0 + (name_h - serif.get_height(fit_px)) * 0.5)
 		n.size = Vector2(card_w - pad * 2, name_h)
 		n.clip_text = true
 		n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
