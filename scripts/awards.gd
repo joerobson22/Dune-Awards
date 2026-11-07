@@ -17,8 +17,8 @@ static func running_order(data: GameData) -> Array[Slide]:
 		HonoursSlide.new([      # silly awards
 			{"eyebrow": "Fed to the worm", "title": "Most 4th places",
 				"values": data.finishes(4), "unit": "4th place"},
-			{"eyebrow": "So near, so far", "title": "Most 3rd places",
-				"values": data.finishes(3), "unit": "3rd place"},
+			{"eyebrow": "So close, so far", "title": "Most 2rd places",
+				"values": data.finishes(2), "unit": "2nd place"},
 			{"eyebrow": "A bad day on Arrakis", "title": "Lowest VP finish",
 				"values": _lowest_vp(data), "unit": "victory point", "lowest_wins": true,
 				"detail": func(p): return _lowest_detail(data, p)},
@@ -35,20 +35,6 @@ static func running_order(data: GameData) -> Array[Slide]:
 			# The round you got it in: earlier is better.
 			"lower_wins": ["Avg. Swordmaster", "Avg. High Council"],
 		}),
-		LeaderAwardsSlide.new(["Baron", "Rabban", "Paul", "Leto", "Ariana", "Memnon", "Ilban"]),
-		HonoursSlide.new([      # devotion to one leader
-			{"eyebrow": "House Harkonnen", "title": "Na' Baron",
-				"values": data.leader_wins("Baron"), "unit": "win",
-				"tiebreak": _neg(data.leader_plays("Baron")),
-				"detail": func(p): return _record_detail(data, "Baron", p),
-				"summary": func(p): return "%s as the Baron" % UI.plural(data.leader_wins("Baron")[p], "win")},
-			{"eyebrow": "House Vernius", "title": "Prince of Ix",
-				"values": _rate(data, "Rhombur"), "tiebreak": data.leader_wins("Rhombur"),
-				"format": func(v): return "–" if v < 0 else "%d%%" % roundi(v),
-				"detail": func(p): return _record_detail(data, "Rhombur", p),
-				"summary": func(p): return "%d%% as Rhombur, %s" % [roundi(_rate(data, "Rhombur")[p]), _record_detail(data, "Rhombur", p)]},
-		], {"eyebrow": "Sworn to a house", "title": "Loyal to the end",
-			"subtitle": "Two honours for mastering a single leader"}),
 
 		SectionSlide.new("Part two", "The long war",
 			"Honours earned across every game"),
@@ -61,6 +47,10 @@ static func running_order(data: GameData) -> Array[Slide]:
 		_mode_award(data, "IX", "Leader of IX"),
 		_mode_award(data, "Immortality", "Tleilax Master"),
 		_mode_award(data, "Uprising", "Imperium Lord"),
+		
+		LeaderAwardsSlide.new(["Baron", "Rabban", "Paul", "Leto", "Ariana", "Memnon", "Ilban"], "Base Leader Award"),
+		LeaderAwardsSlide.new(["Ilesa", "Armand", "Tessia", "Rhombur", "Yuna", "Hundro"], "IX Leader Award"),
+		LeaderAwardsSlide.new(["Muad'Dib", "Corrino", "Irulan", "Margot", "Feyd-Rautha", "Gurney", "Amber", "Staban", "Jessica"], "Uprising Leader Award"),
 
 		# ── Add new award slides here ──────────────────────────────
 		# RankingRevealSlide.new({
