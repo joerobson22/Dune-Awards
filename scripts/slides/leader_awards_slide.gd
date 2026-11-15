@@ -9,6 +9,16 @@ extends Slide
 ##
 ## Level rates are split by more wins, then shared (a point each). A
 ## leader nobody has won with scores no points.
+##
+## A second array after the award name adds a second award: the best
+## win rate any player has with a single leader from that list. Its card
+## follows the Leader Award card on the next click.
+##   LeaderAwardsSlide.new(["Baron", ...], "Leader Award",
+##       ["Baron", "Paul", "Tessia", ...], "Master of One")
+## Only leaders played at least Config.SINGLE_LEADER_MIN_GAMES times
+## count; a fifth argument overrides that for one slide (handy for a box
+## with few games). Level rates are split by more wins, then shared. No
+## card is shown if nobody qualifies or nobody won with a listed leader.
 
 const NAME_W := 300.0
 const HEAD_H := 64.0
@@ -16,6 +26,9 @@ const FOOT_H := 92.0
 
 var leaders: Array = []
 var title := "Leader Award"
+var single_leaders: Array = []
+var single_title := "Master of One"
+var single_min_games := Config.SINGLE_LEADER_MIN_GAMES
 var _rows := []
 var _points := {}        # player -> Label in the footer
 var _score := {}         # player -> points shown so far
@@ -24,9 +37,14 @@ var _col_w := 0.0
 var _foot_y := 0.0
 
 
-func _init(leader_names: Array, award_title := "Leader Award") -> void:
+func _init(leader_names: Array, award_title := "Leader Award",
+		single_leader_names: Array = [], single_award_title := "Master of One",
+		min_games := Config.SINGLE_LEADER_MIN_GAMES) -> void:
 	leaders = leader_names
 	title = award_title
+	single_leaders = single_leader_names
+	single_title = single_award_title
+	single_min_games = maxi(1, min_games)
 
 
 ## The win-rate ranking for one leader. Never-played rates are -1.
@@ -65,8 +83,68 @@ func _final_points() -> Dictionary:
 func get_awards() -> Array:
 	var r := data.rank(_final_points(), data.total_vp())
 	var winners: Array = r.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
-	return [{"title": title, "winners": winners,
+	var awards := [{"title": title, "winners": winners,
 		"stat": "best win rate with %d of %d leaders" % [int(r[0]["value"]), leaders.size()]}]
+	var single := _single_leader_award()
+	if not single.is_empty():
+		awards.append(single)
+	return awards
+
+
+## Each player's best record with one leader from single_leaders:
+## player -> {rate, wins, plays, leaders}. Players short of the minimum
+## games with every listed leader are left out. A player level on rate
+## and wins with two leaders keeps both.
+func _best_single_records() -> Dictionary:
+	var best := {}
+	for l in single_leaders:
+		var rec := data.leader_record(l)
+		for p in data.players:
+			var r: Dictionary = rec[p]
+			if r["plays"] < single_min_games:
+				continue
+			var rate: float = float(r["wins"]) / r["plays"]
+			var b: Dictionary = best.get(p, {})
+			if b.is_empty() or rate > b["rate"] or (rate == b["rate"] and r["wins"] > b["wins"]):
+				best[p] = {"rate": rate, "wins": r["wins"], "plays": r["plays"], "leaders": [l]}
+			elif rate == b["rate"] and r["wins"] == b["wins"]:
+				b["leaders"].append(l)
+	return best
+
+
+## The best win rate with a single leader, as an award card. Empty if
+## no listed leader was played enough or nobody won with one.
+func _single_leader_award() -> Dictionary:
+	if single_leaders.is_empty():
+		return {}
+	var best := _best_single_records()
+	var rate := {}
+	var wins := {}
+	for p in data.players:
+		rate[p] = best[p]["rate"] if best.has(p) else -1.0
+		wins[p] = best[p]["wins"] if best.has(p) else -1
+	var r := data.rank(rate, wins)
+	if r[0]["value"] <= 0.0:
+		push_warning("%s: no one has won with a leader they played %d+ times." \
+			% [single_title, single_min_games])
+		return {}
+	var winners: Array = r.filter(func(x): return x["rank"] == 1).map(func(x): return x["player"])
+	var top: Dictionary = best[winners[0]]
+	var pct := roundi(top["rate"] * 100)
+	var min_note := "Best win rate with one leader  ·  at least %s" % UI.plural(single_min_games, "game")
+	if winners.size() == 1:
+		return {"title": single_title, "winners": winners,
+			"stat": "%d%% as %s  ·  %d of %d won" % [pct, _leaders_text(top["leaders"]), top["wins"], top["plays"]],
+			"note": min_note}
+	# Shared: say who did it with which leader on the card's note line.
+	var who := winners.map(func(p): return "%s as %s" % [data.name_of(p), _leaders_text(best[p]["leaders"])])
+	return {"title": single_title, "winners": winners,
+		"stat": "%d%% with one leader  ·  %d of %d won" % [pct, top["wins"], top["plays"]],
+		"note": "  ·  ".join(who)}
+
+
+func _leaders_text(names: Array) -> String:
+	return " & ".join(names)
 
 
 func build() -> void:
@@ -130,7 +208,12 @@ func _rule(y: float, alpha: float) -> void:
 func _make_row(leader: String, y: float, h: float) -> Dictionary:
 	var ranking := _ranking(leader)
 	var winners := _leader_winners(ranking)
-	var nm := UI.label(leader.to_upper(), UI.Face.DISPLAY, 24, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 3)
+	# Shrink a long name (e.g. Feyd-Rautha) to fit the name column.
+	var name_px := 24
+	var nf := UI.font(UI.Face.DISPLAY, 3)
+	while name_px > 14 and nf.get_string_size(leader.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x > NAME_W - 44:
+		name_px -= 1
+	var nm := UI.label(leader.to_upper(), UI.Face.DISPLAY, name_px, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 3)
 	nm.material = UI.gold_material()
 	nm.position = Vector2(MARGIN + 30, y)
 	nm.size = Vector2(NAME_W - 40, h)

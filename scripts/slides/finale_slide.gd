@@ -24,7 +24,10 @@ func build() -> void:
 	var stat_px := 21 if compact else 27
 	var name_h := UI.font(UI.Face.SERIF_BOLD).get_height(name_px)
 	var stat_h := UI.font(UI.Face.ITALIC).get_height(stat_px)
-	var block := 22.0 + name_h + stat_h - 10.0
+	# The stat tucks up under the name; less so when compact, where the
+	# smaller name's descenders would otherwise touch it.
+	var tuck := 3.0 if compact else 10.0
+	var block := 22.0 + name_h + stat_h - tuck
 	var y0 := (card_h - block) * 0.5
 	for i in awards.size():
 		var a: Dictionary = awards[i]
@@ -60,7 +63,7 @@ func build() -> void:
 			vb.add_child(bar)
 		card.add_child(vb)
 		var s := UI.label(a.get("stat", ""), UI.Face.ITALIC, stat_px, Config.SAND_DIM)
-		s.position = Vector2(pad, y0 + 22.0 + name_h - 10.0)
+		s.position = Vector2(pad, y0 + 22.0 + name_h - tuck)
 		s.size = Vector2(card_w - pad * 2, stat_h)
 		s.clip_text = true
 		s.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
