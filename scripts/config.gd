@@ -28,6 +28,11 @@ const EXPANSIONS := {
 ## (Chaumurky always wins a tie on VPs if the tied player holds it.)
 const TIEBREAK_ORDER := ["spice", "solari", "water"]
 
+## Games a player needs with a leader before that leader counts towards
+## the best single-leader win rate (LeaderAwardsSlide's second award).
+## Stops one lucky game at 100% from taking it. A slide can override it.
+const SINGLE_LEADER_MIN_GAMES := 3
+
 
 # ── Presentation ─────────────────────────────────────────────────────
 ## Seconds each game takes in the live "race" graphs.

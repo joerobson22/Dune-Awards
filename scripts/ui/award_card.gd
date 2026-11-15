@@ -61,7 +61,13 @@ func show_award(info: Dictionary) -> void:
 	_card.add_child(_box)
 
 	_box.add_child(UI.eyebrow("The award for", 15, Config.SAND_DIM, HORIZONTAL_ALIGNMENT_CENTER))
-	var title := UI.label(info["title"].to_upper(), UI.Face.DISPLAY, 50, Color.WHITE,
+	# Shrink a long title (e.g. "Uprising Master of One") to sit inside the frame.
+	var title_text: String = info["title"].to_upper()
+	var title_px := 50
+	var tf := UI.font(UI.Face.DISPLAY, 6)
+	while title_px > 30 and tf.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, title_px).x > CARD_SIZE.x - 180:
+		title_px -= 2
+	var title := UI.label(title_text, UI.Face.DISPLAY, title_px, Color.WHITE,
 		HORIZONTAL_ALIGNMENT_CENTER, 6)
 	title.material = UI.gold_material()
 	_box.add_child(title)

@@ -238,6 +238,18 @@ The heading is `{"eyebrow": ..., "title": ..., "subtitle": ...}`. Optional entry
 
 **`LeaderAwardsSlide.new(["Baron", "Rabban", ...])`**: the Leader Award table. List any
 leaders from `games.csv`; up to about eight rows fit.
+- Add a second array after the award name to also give the best win rate with a single
+  leader. Its card follows the Leader Award card, with its own confetti.
+- The fourth argument names it (default "Master of One"). Give each slide its own name.
+- Only leaders played at least `SINGLE_LEADER_MIN_GAMES` times count (3, in `config.gd`).
+- A fifth argument sets that minimum for one slide, e.g. `2` for Uprising's few games.
+- Level rates are split by more wins, then shared. No card if nobody qualifies.
+
+```gdscript
+LeaderAwardsSlide.new(["Baron", "Rabban", "Paul", "Leto", "Ariana", "Memnon", "Ilban"],
+    "Base Leader Award", ["Baron", "Rabban", "Paul", "Leto", "Ariana", "Memnon", "Ilban"],
+    "Master of the Base Game"),
+```
 
 **`FaveAllianceSlide.new()`**: reads the alliances from `ALLIANCES` in `config.gd`.
 
