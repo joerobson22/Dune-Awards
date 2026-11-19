@@ -13,6 +13,10 @@ extends Control
 ##
 ## The 1920×1080 canvas is fixed; position things in those pixels.
 
+## Emit after changing the data files (e.g. adding a game). The show
+## reloads every CSV and rebuilds every slide, keeping this one on screen.
+signal data_changed
+
 const W := 1920.0
 const H := 1080.0
 const MARGIN := 96.0
@@ -36,6 +40,12 @@ func build() -> void:
 ## [{title, winners: [player tags], stat}] — used by the finale.
 func get_awards() -> Array:
 	return []
+
+
+## Return true to keep a click or key for this slide's own buttons and
+## text boxes, so the show does not treat it as "next" or "back".
+func captures_input(_event: InputEvent) -> bool:
+	return false
 
 
 # ── Called by the show ───────────────────────────────────────────────

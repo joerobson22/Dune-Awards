@@ -6,6 +6,7 @@ extends Control
 ##   Click, Space, →, Enter, Page Down   next reveal / next slide
 ##   Right-click, ←, Backspace, Page Up  previous slide
 ##   R      replay the current slide        Home   back to the start
+##   S      stats overview, and back again  End    stats overview
 ##   F11/F  toggle full screen              Esc    leave full screen, then quit
 
 var data := GameData.new()
@@ -15,6 +16,8 @@ var index := -1
 var _host: Control
 var _counter: Label
 var _busy := false
+## Where S jumped to the stats from, so a second S goes back there.
+var _before_stats := -1
 
 
 func _ready() -> void:
@@ -32,10 +35,16 @@ func _ready() -> void:
 		_show_error(err)
 		return
 	slides = Awards.running_order(data)
+	_wire_slides()
+	go_to(0)
+
+
+func _wire_slides() -> void:
 	for s in slides:
 		s.data = data
 		s.ceremony = slides
-	go_to(0)
+		if not s.data_changed.is_connected(_on_data_changed):
+			s.data_changed.connect(_on_data_changed.bind(s))
 
 
 func _build_footer() -> void:
@@ -50,6 +59,8 @@ func _build_footer() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if not slides.is_empty() and index >= 0 and slides[index].captures_input(event):
+		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			next()
@@ -65,6 +76,10 @@ func _input(event: InputEvent) -> void:
 				go_to(index)
 			KEY_HOME:
 				go_to(0)
+			KEY_S:
+				_toggle_stats()
+			KEY_END:
+				_go_to_stats()
 			KEY_F11, KEY_F:
 				_toggle_fullscreen()
 			KEY_ESCAPE:
@@ -108,6 +123,64 @@ func go_to(i: int) -> void:
 	tw_in.tween_property(s, "modulate:a", 1.0, fade)
 	await tw_in.finished
 	_busy = false
+
+
+func _stats_index() -> int:
+	for i in slides.size():
+		if slides[i] is StatsOverviewSlide:
+			return i
+	return slides.size() - 1
+
+
+func _go_to_stats() -> void:
+	var i := _stats_index()
+	if _busy or i == index:
+		return
+	_before_stats = index
+	go_to(i)
+
+
+## S jumps to the stats overview; a second S returns to where you were.
+func _toggle_stats() -> void:
+	if _busy:
+		return
+	if index == _stats_index() and _before_stats >= 0:
+		var back := _before_stats
+		_before_stats = -1
+		go_to(back)
+	else:
+		_go_to_stats()
+
+
+## A slide changed the data files: reload them and rebuild every slide,
+## so all awards and charts include the change. The slide that asked
+## stays on screen and is rebuilt in place.
+func _on_data_changed(source: Slide) -> void:
+	var fresh := GameData.new()
+	var err := fresh.load_all()
+	if err != "":
+		push_error(err)
+		return
+	data = fresh
+	var order := Awards.running_order(data)
+	var keep := -1
+	for i in order.size():
+		if order[i].get_script() == source.get_script():
+			order[i].free()
+			order[i] = source
+			keep = i
+			break
+	for s in slides:
+		if s != source and is_instance_valid(s) and not s.is_inside_tree():
+			s.free()
+	slides = order
+	_wire_slides()
+	if keep < 0:
+		go_to(0)
+		return
+	index = keep
+	source.enter()
+	_counter.text = "%d / %d" % [index + 1, slides.size()]
 
 
 func _toggle_fullscreen() -> void:

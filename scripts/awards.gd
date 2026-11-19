@@ -64,6 +64,9 @@ static func running_order(data: GameData) -> Array[Slide]:
 
 		FinaleSlide.new(),
 		KwisatzSlide.new(),
+
+		# Leaderboards, the game record and "Add new game". S jumps here.
+		StatsOverviewSlide.new(),
 	]
 
 
