@@ -25,6 +25,7 @@ The first open takes a few seconds while Godot imports the fonts.
 | Home | Back to the title |
 | S | Jump to the stats overview. Press S again to go back to where you were |
 | End | Jump to the stats overview |
+| "Skip to stats overview" button (title slide) | Same as S |
 | F11 or F | Full screen on or off |
 | Esc | Leave full screen, then quit |
 

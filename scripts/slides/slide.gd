@@ -16,6 +16,8 @@ extends Control
 ## Emit after changing the data files (e.g. adding a game). The show
 ## reloads every CSV and rebuilds every slide, keeping this one on screen.
 signal data_changed
+## Emit to jump to the stats overview, the same as pressing S.
+signal jump_to_stats
 
 const W := 1920.0
 const H := 1080.0

@@ -4,10 +4,16 @@ extends Slide
 ## under the title, e.g. TitleSlide.new("Two years on Arrakis").
 
 var tagline := ""
+var _skip: Button
 
 
 func _init(line := "") -> void:
 	tagline = line
+
+
+## A click on the skip button is for the button, not "next slide".
+func captures_input(event: InputEvent) -> bool:
+	return event is InputEventMouseButton and is_instance_valid(_skip) and _skip.is_hovered()
 
 
 func build() -> void:
@@ -61,6 +67,20 @@ func build() -> void:
 	var tw := tween().set_loops()
 	tw.tween_property(hint, "modulate:a", 0.35, 1.4).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(hint, "modulate:a", 1.0, 1.4).set_trans(Tween.TRANS_SINE)
+
+	# Straight to the stats overview at the end (the S key does the same).
+	_skip = Button.new()
+	_skip.theme = UI.form_theme()
+	_skip.text = "Skip to stats overview"
+	_skip.add_theme_font_size_override("font_size", 22)
+	_skip.focus_mode = Control.FOCUS_NONE
+	_skip.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_skip.size = Vector2(280, 44)
+	_skip.position = Vector2(W - MARGIN - _skip.size.x, StatsOverviewSlide.BUTTON_Y)
+	_skip.pressed.connect(func(): jump_to_stats.emit())
+	add(_skip)
+	_skip.modulate.a = 0.0
+	tween().tween_property(_skip, "modulate:a", 1.0, 0.9).set_delay(1.4)
 
 	# Fade the parts in one after another.
 	var i := 0
