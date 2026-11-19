@@ -23,6 +23,8 @@ The first open takes a few seconds while Godot imports the fonts.
 | Click while something is animating | Finish that animation at once |
 | R | Replay the current slide from the start |
 | Home | Back to the title |
+| S | Jump to the stats overview. Press S again to go back to where you were |
+| End | Jump to the stats overview |
 | F11 or F | Full screen on or off |
 | Esc | Leave full screen, then quit |
 
@@ -47,6 +49,7 @@ Presentation clickers send Page Up and Page Down, so they work too.
 | 11 | *Part three: The four boxes* | |
 | 12–15 | **Duke of Arrakis**, **Leader of IX**, **Tleilax Master**, **Imperium Lord** | 4th, 3rd, 2nd, then 1st place, one per click |
 | 16 | The spice must flow: every winner on one screen | |
+| Last | **Stats overview**: leaderboards, every game, and "Add new game" | Press S to jump here |
 
 **Favourite alliances (slide 3).** Each column fills with the players whose favourite it
 was, from the "Fave Alliance" row of `core_stats.csv`. An alliance nobody picked says "No one".
@@ -82,6 +85,15 @@ beside it re-sorts as the lead changes.
 **The live VP chart (slide 10).** Running total VPs per player. Each new single-game record
 flashes red: that is the Treachery race.
 
+**Stats overview (last slide).** Not part of the reveal: it is for looking things up, and for
+adding games. Press **S** from any slide to jump here, and S again to go back.
+- The strip at the top shows total games, the biggest VP finish and the most wins.
+- **Most wins**: the four players, ranked. The chips filter it to one expansion.
+- **By leader**: wins with each leader. Each dot is one win, in the winner's colour.
+- **Every game**: newest first, players in finishing order. Scroll it with the mouse wheel.
+  The winner's box is outlined in the colour of how they won (gold for VP). Coloured dots
+  show any spice, solari and water written down, and Chaumurky.
+
 **Ties in an award.** Level scores are split by total VPs in the same scope. If players are
 still level, they share the place and the card names both. The row says how a tie was
 settled, e.g. "level on 3 wins, split by total VP: 88".
@@ -110,7 +122,18 @@ game,expansion,player,leader,vp,spice,solari,water,chaumurky,winner,win_method
 | `winner` | `1` for the winner. **Optional**: see below. |
 | `win_method` | `VP`, `Spice`, `Solari`, `Water` or `Chaumurky`. **Optional.** |
 
-**Adding a new game:** add four rows with the next game number. You may leave `winner` and
+**Adding a new game:** the easiest way is the **Add new game** button on the stats overview
+(press S). Pick the expansion, then each player's leader and VPs.
+- Spice, solari and water are asked for only when players are level on VPs. The boxes that
+  decide the winner light up gold, and the game can't be added until they are filled in.
+  Boxes for a tie lower down are optional.
+- Chaumurky is a toggle; only one player can hold it.
+- The form shows who won before you add it. **Add game** (or Enter) writes four rows to
+  the end of `data/games.csv`, then every slide is rebuilt to include the game.
+- Saving works when the show is run from the Godot editor (F5). An exported copy can't
+  write into its own files.
+
+To add a game by hand instead, add four rows with the next game number. You may leave `winner` and
 `win_method` blank. The program then works the winner out the same way the game does: most
 VPs, then Chaumurky, then spice, solari, water. That rule was checked against all 53 games in
 the spreadsheet and agrees with every one.
@@ -316,9 +339,11 @@ scripts/
     vp_race_slide.gd          Shai Hulud, Treachery
     ranking_reveal_slide.gd   reusable 4th-to-1st reveal
     finale_slide.gd           all winners
+    stats_overview_slide.gd   stats overview, game record and "Add new game"
     example_custom_slide.gd   template for a slide of your own (not in the show)
   ui/                         building blocks: chart, leaderboard, award card,
-                              alliance emblems, gold sparks, desert background, fonts
+                              alliance emblems, gold sparks, desert background, fonts,
+                              add_game_dialog.gd (the "Add new game" form)
 fonts/                        Michroma, Cormorant Garamond, Cinzel (SIL Open Font Licence)
 ```
 

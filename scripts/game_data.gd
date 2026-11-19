@@ -147,15 +147,24 @@ func _num(s: String) -> int:
 	return int(s) if s.is_valid_int() else -1
 
 
-## Applies the game's rules when no winner is marked in the CSV:
-## most VPs, then Chaumurky, then spice, solari and water.
+## Applies the game's rules when no winner is marked in the CSV.
 func _decide_winner(g: Dictionary) -> void:
-	var results: Array = g["results"]
+	var d := decide_winner(g["results"])
+	var w: Dictionary = g["results"][d["index"]]
+	w["winner"] = true
+	w["win_method"] = d["method"]
+	g["winner"] = w
+
+
+## The game's rules: most VPs, then Chaumurky, then spice, solari and
+## water. `results` is one game's rows ({vp, chaumurky, spice, solari,
+## water}, -1 for a blank number). Returns {index, method}.
+func decide_winner(results: Array) -> Dictionary:
 	var top: int = results.map(func(r): return r["vp"]).max()
-	var tied: Array = results.filter(func(r): return r["vp"] == top)
+	var tied: Array = range(results.size()).filter(func(i): return results[i]["vp"] == top)
 	var method := "VP"
 	if tied.size() > 1:
-		var holder: Array = tied.filter(func(r): return r["chaumurky"])
+		var holder: Array = tied.filter(func(i): return results[i]["chaumurky"])
 		if not holder.is_empty():
 			tied = holder
 			method = "Chaumurky"
@@ -163,12 +172,82 @@ func _decide_winner(g: Dictionary) -> void:
 			for key in Config.TIEBREAK_ORDER:
 				if tied.size() == 1:
 					break
-				var best: int = tied.map(func(r): return r[key]).max()
-				tied = tied.filter(func(r): return r[key] == best)
+				var best: int = tied.map(func(i): return results[i][key]).max()
+				tied = tied.filter(func(i): return results[i][key] == best)
 				method = key.capitalize()
-	tied[0]["winner"] = true
-	tied[0]["win_method"] = method
-	g["winner"] = tied[0]
+	return {"index": tied[0], "method": method}
+
+
+## Which tie-break numbers a new game needs, following decide_winner().
+## Returns [{index, key, required}]: `required` is true when the number
+## decides the winner, false when it only splits a lower place.
+## Every row needs a vp first.
+func tiebreak_requests(results: Array) -> Array:
+	var out := []
+	var by_vp := {}
+	for i in results.size():
+		by_vp[results[i]["vp"]] = by_vp.get(results[i]["vp"], []) + [i]
+	var top: int = by_vp.keys().max()
+	for vp in by_vp:
+		var group: Array = by_vp[vp]
+		if group.size() < 2:
+			continue
+		var deciding: bool = vp == top
+		var holder: Array = group.filter(func(i): return results[i]["chaumurky"])
+		if deciding and not holder.is_empty():
+			group = group.filter(func(i): return i not in holder)
+			deciding = false
+		_split_tie(results, group, 0, deciding, out)
+	return out
+
+
+func _split_tie(results: Array, group: Array, depth: int, deciding: bool, out: Array) -> void:
+	if group.size() < 2 or depth >= Config.TIEBREAK_ORDER.size():
+		return
+	var key: String = Config.TIEBREAK_ORDER[depth]
+	for i in group:
+		out.append({"index": i, "key": key, "required": deciding})
+	if group.any(func(i): return results[i][key] < 0):
+		return  # the next number is only asked once this one is filled in
+	var by_value := {}
+	for i in group:
+		by_value[results[i][key]] = by_value.get(results[i][key], []) + [i]
+	var best: int = by_value.keys().max()
+	for v in by_value:
+		_split_tie(results, by_value[v], depth + 1, deciding and v == best, out)
+
+
+## Adds a game to the end of games.csv. `rows`: one per player,
+## {player, leader, vp, spice, solari, water, chaumurky} (-1 = blank).
+## The winner is worked out by decide_winner(). Returns "" on success.
+## Reload the data afterwards (main.gd does) to see it everywhere.
+func append_game(expansion: String, rows: Array) -> String:
+	var path := Config.GAMES_CSV
+	var f := FileAccess.open(path, FileAccess.READ_WRITE)
+	if f == null:
+		return "Could not open %s for writing (%s). Run the show from the Godot editor to save games." \
+			% [path, error_string(FileAccess.get_open_error())]
+	var n := next_game_number()
+	var d := decide_winner(rows)
+	var length := f.get_length()
+	if length > 0:
+		f.seek(length - 1)
+		var ends_cleanly := f.get_8() == 10
+		f.seek_end()
+		if not ends_cleanly:
+			f.store_string("\n")
+	for i in rows.size():
+		var r: Dictionary = rows[i]
+		var won: bool = i == d["index"]
+		f.store_csv_line(PackedStringArray([str(n), expansion, r["player"], r["leader"],
+			str(r["vp"]), _cell(r["spice"]), _cell(r["solari"]), _cell(r["water"]),
+			"1" if r["chaumurky"] else "0", "1" if won else "0", d["method"] if won else ""]))
+	f.close()
+	return ""
+
+
+func _cell(v: int) -> String:
+	return str(v) if v >= 0 else ""
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -309,6 +388,56 @@ func leader_record(leader: String, expansion := "") -> Dictionary:
 				if r["winner"]:
 					d[r["player"]]["wins"] += 1
 	return d
+
+
+func next_game_number() -> int:
+	return games[-1]["number"] + 1 if not games.is_empty() else 1
+
+
+## Every leader played, A to Z.
+func leaders() -> Array[String]:
+	var out: Array[String] = []
+	for g in games:
+		for r in g["results"]:
+			if r["leader"] != "" and r["leader"] not in out:
+				out.append(r["leader"])
+	out.sort()
+	return out
+
+
+## Wins with each leader, most first: [{leader, wins, plays, winners}]
+## where `winners` lists the player tag of each win, in game order.
+## Level leaders are ordered by fewer plays (the better rate), then A–Z.
+func leader_table(expansion := "") -> Array:
+	var by := {}
+	for g in games_in(expansion):
+		for r in g["results"]:
+			var l: String = r["leader"]
+			if not by.has(l):
+				by[l] = {"leader": l, "wins": 0, "plays": 0, "winners": []}
+			by[l]["plays"] += 1
+			if r["winner"]:
+				by[l]["wins"] += 1
+				by[l]["winners"].append(r["player"])
+	var rows := by.values()
+	rows.sort_custom(func(a, b):
+		if a["wins"] != b["wins"]:
+			return a["wins"] > b["wins"]
+		if a["plays"] != b["plays"]:
+			return a["plays"] < b["plays"]
+		return a["leader"] < b["leader"])
+	return rows
+
+
+## The highest VPs anyone scored in one game: {vp, player, leader, game}.
+## The first time it happened wins a tie.
+func biggest_finish(expansion := "") -> Dictionary:
+	var out := {}
+	for g in games_in(expansion):
+		for r in g["results"]:
+			if out.is_empty() or r["vp"] > out["vp"]:
+				out = {"vp": r["vp"], "player": r["player"], "leader": r["leader"], "game": g["number"]}
+	return out
 
 
 ## Highest VPs in a single game.

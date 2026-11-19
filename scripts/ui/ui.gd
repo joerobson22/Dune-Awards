@@ -136,3 +136,138 @@ static func roman(n: int) -> String:
 
 static func plural(n: int, word: String) -> String:
 	return "%d %s%s" % [n, word, "" if n == 1 else "s"]
+
+
+# ── Interactive controls (stats overview, add-game form) ─────────────
+
+static var _form_theme: Theme
+
+
+static func box(fill: Color, border: Color, pad_x := 14.0, pad_y := 6.0) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = fill
+	s.border_color = border
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(2)
+	s.content_margin_left = pad_x
+	s.content_margin_right = pad_x
+	s.content_margin_top = pad_y
+	s.content_margin_bottom = pad_y
+	return s
+
+
+## Buttons, text boxes, drop-downs and scroll bars in the ceremony's
+## colours. Set it as the `theme` of a container; children inherit it.
+static func form_theme() -> Theme:
+	if _form_theme:
+		return _form_theme
+	var t := Theme.new()
+	t.default_font = font(Face.SERIF)
+	t.default_font_size = 24
+	var ink := Color(Config.INK, 0.95)
+	for type in ["Button", "OptionButton"]:
+		t.set_stylebox("normal", type, box(ink, Color(Config.GOLD, 0.4)))
+		t.set_stylebox("hover", type, box(Color(Config.GOLD, 0.1), Color(Config.GOLD, 0.85)))
+		t.set_stylebox("pressed", type, box(Color(Config.GOLD, 0.22), Config.GOLD))
+		t.set_stylebox("hover_pressed", type, box(Color(Config.GOLD, 0.26), Config.GOLD_BRIGHT))
+		t.set_stylebox("disabled", type, box(Color(Config.INK, 0.6), Color(Config.SAND_FAINT, 0.4)))
+		var focus := box(Color(0, 0, 0, 0), Config.GOLD_BRIGHT)
+		focus.draw_center = false
+		t.set_stylebox("focus", type, focus)
+		t.set_color("font_color", type, Config.SAND)
+		t.set_color("font_hover_color", type, Config.GOLD_BRIGHT)
+		t.set_color("font_pressed_color", type, Config.GOLD_BRIGHT)
+		t.set_color("font_hover_pressed_color", type, Config.GOLD_BRIGHT)
+		t.set_color("font_focus_color", type, Config.SAND)
+		t.set_color("font_disabled_color", type, Config.SAND_FAINT)
+	t.set_color("icon_normal_color", "OptionButton", Config.SAND_DIM)
+	t.set_color("icon_hover_color", "OptionButton", Config.GOLD_BRIGHT)
+	t.set_constant("arrow_margin", "OptionButton", 12)
+
+	t.set_stylebox("normal", "LineEdit", box(Color(0, 0, 0, 0.35), Color(Config.SAND_FAINT, 0.7), 12, 4))
+	t.set_stylebox("focus", "LineEdit", box(Color(0, 0, 0, 0), Config.GOLD_BRIGHT, 12, 4))
+	t.set_stylebox("read_only", "LineEdit", box(Color(0, 0, 0, 0.2), Color(Config.SAND_FAINT, 0.3), 12, 4))
+	t.set_color("font_color", "LineEdit", Config.SAND)
+	t.set_color("font_placeholder_color", "LineEdit", Color(Config.SAND_FAINT, 0.9))
+	t.set_color("caret_color", "LineEdit", Config.GOLD_BRIGHT)
+	t.set_color("selection_color", "LineEdit", Color(Config.GOLD, 0.35))
+	t.set_font("font", "LineEdit", font(Face.NUMBER))
+
+	var menu := box(Color(Config.INK, 0.98), Color(Config.GOLD, 0.6), 6, 6)
+	menu.shadow_color = Color(0, 0, 0, 0.6)
+	menu.shadow_size = 16
+	t.set_stylebox("panel", "PopupMenu", menu)
+	t.set_stylebox("hover", "PopupMenu", box(Color(Config.GOLD, 0.18), Color(0, 0, 0, 0), 8, 2))
+	var sep := StyleBoxLine.new()
+	sep.color = Color(Config.GOLD, 0.25)
+	t.set_stylebox("separator", "PopupMenu", sep)
+	t.set_color("font_color", "PopupMenu", Config.SAND)
+	t.set_color("font_hover_color", "PopupMenu", Config.GOLD_BRIGHT)
+	t.set_color("font_disabled_color", "PopupMenu", Config.SAND_FAINT)
+	t.set_color("font_separator_color", "PopupMenu", Config.SAND_FAINT)
+	t.set_font("font", "PopupMenu", font(Face.SERIF))
+	t.set_font_size("font_size", "PopupMenu", 22)
+	t.set_constant("v_separation", "PopupMenu", 6)
+	t.set_constant("item_start_padding", "PopupMenu", 12)
+	t.set_constant("item_end_padding", "PopupMenu", 12)
+	# The ticked item gets a small gold diamond; the others nothing.
+	t.set_icon("radio_checked", "PopupMenu", _diamond_icon(12, Config.GOLD_BRIGHT))
+	t.set_icon("radio_unchecked", "PopupMenu", _diamond_icon(12, Color(0, 0, 0, 0)))
+
+	for bar in ["VScrollBar", "HScrollBar"]:
+		var track := StyleBoxFlat.new()
+		track.bg_color = Color(Config.GOLD, 0.06)
+		track.set_corner_radius_all(3)
+		track.content_margin_left = 3
+		track.content_margin_right = 3
+		var grab := StyleBoxFlat.new()
+		grab.bg_color = Color(Config.GOLD, 0.4)
+		grab.set_corner_radius_all(3)
+		var grab_hi := grab.duplicate()
+		grab_hi.bg_color = Color(Config.GOLD, 0.7)
+		t.set_stylebox("scroll", bar, track)
+		t.set_stylebox("scroll_focus", bar, track)
+		t.set_stylebox("grabber", bar, grab)
+		t.set_stylebox("grabber_highlight", bar, grab_hi)
+		t.set_stylebox("grabber_pressed", bar, grab_hi)
+	_form_theme = t
+	return t
+
+
+static func _diamond_icon(px: int, colour: Color) -> Texture2D:
+	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
+	var c := (px - 1) * 0.5
+	for y in px:
+		for x in px:
+			var d := absf(x - c) + absf(y - c)
+			var a := clampf(c * 0.7 - d + 0.5, 0.0, 1.0)
+			img.set_pixel(x, y, Color(colour, colour.a * a))
+	return ImageTexture.create_from_image(img)
+
+
+## A small toggle in a row of choices (e.g. a filter). Put several in one
+## ButtonGroup so one stays on.
+static func chip(text: String, group: ButtonGroup, size := 19) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.toggle_mode = true
+	b.button_group = group
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.add_theme_font_size_override("font_size", size)
+	b.add_theme_stylebox_override("normal", box(Color(0, 0, 0, 0), Color(Config.GOLD, 0.25), 9, 2))
+	b.add_theme_stylebox_override("hover", box(Color(Config.GOLD, 0.08), Color(Config.GOLD, 0.6), 9, 2))
+	b.add_theme_stylebox_override("pressed", box(Color(Config.GOLD, 0.24), Config.GOLD, 9, 2))
+	b.add_theme_stylebox_override("hover_pressed", box(Color(Config.GOLD, 0.28), Config.GOLD_BRIGHT, 9, 2))
+	b.add_theme_color_override("font_color", Config.SAND_DIM)
+	b.add_theme_color_override("font_pressed_color", Config.GOLD_BRIGHT)
+	b.add_theme_color_override("font_hover_pressed_color", Config.GOLD_BRIGHT)
+	return b
+
+
+## Ordinal for a place: 1 -> "1st".
+static func ordinal(n: int) -> String:
+	var suffix := "th"
+	if n % 100 < 11 or n % 100 > 13:
+		suffix = ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"][n % 10]
+	return "%d%s" % [n, suffix]
