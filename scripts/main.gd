@@ -45,6 +45,8 @@ func _wire_slides() -> void:
 		s.ceremony = slides
 		if not s.data_changed.is_connected(_on_data_changed):
 			s.data_changed.connect(_on_data_changed.bind(s))
+		if not s.jump_to_stats.is_connected(_go_to_stats):
+			s.jump_to_stats.connect(_go_to_stats)
 
 
 func _build_footer() -> void:
