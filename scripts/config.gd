@@ -8,12 +8,23 @@ extends RefCounted
 
 
 # ── Data files ───────────────────────────────────────────────────────
+## The show reads and saves its CSVs in the data folder in your user
+## files, so an exported copy can save too. Godot works out where that is
+## ("Dune Awards" is set in project.godot):
+##   Windows  %APPDATA%\Dune Awards\data
+##   macOS    ~/Library/Application Support/Dune Awards/data
+##   Linux    ~/.local/share/Dune Awards/data
+## The stats overview has a button that opens it.
+const DATA_DIR := "user://data/"
+## The first time the show runs, any CSV missing from DATA_DIR is copied
+## from here (the project's own data/ folder). After that, DATA_DIR wins.
+const SEED_DIR := "res://data/"
 ## One row per player per game. See README.md for the column format.
-const GAMES_CSV := "res://data/games.csv"
+const GAMES_CSV := DATA_DIR + "games.csv"
 ## Display name and line colour for each player tag.
-const PLAYERS_CSV := "res://data/players.csv"
+const PLAYERS_CSV := DATA_DIR + "players.csv"
 ## The app's per-person stats (Muad'Dib award, favourite alliances).
-const CORE_STATS_CSV := "res://data/core_stats.csv"
+const CORE_STATS_CSV := DATA_DIR + "core_stats.csv"
 
 ## Expansion codes used in games.csv, in the order they were played,
 ## mapped to the name shown on screen. Add a new line for a new box.

@@ -2,7 +2,8 @@ class_name StatsOverviewSlide
 extends Slide
 ## The stats overview: headline numbers, the wins leaderboard (filter it
 ## by expansion), wins by leader, and every game on record, newest first.
-## "Add new game" records a result in data/games.csv. The show then
+## "Add new game" records a result in games.csv, and "Change core stats"
+## edits core_stats.csv (both in the data folder, see config.gd). The show then
 ## reloads, so every slide in the ceremony includes the new game.
 ## Press S from any slide to jump here, and S again to go back.
 
@@ -26,7 +27,7 @@ var added_game := 0
 var added_message := ""
 
 var _wins_body: Control
-var _dialog: AddGameDialog
+var _dialog: FormDialog
 var _toast: Label
 
 
@@ -448,30 +449,63 @@ func _tiebreak_items(r: Dictionary) -> Array:
 # ── Add a game ───────────────────────────────────────────────────────
 
 func _build_button() -> void:
-	var b := Button.new()
-	b.text = "Add new game"
-	b.add_theme_font_size_override("font_size", 22)
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.focus_mode = Control.FOCUS_NONE
-	var bw := 220.0
-	b.position = Vector2(W - MARGIN - bw, BUTTON_Y)
-	b.size = Vector2(bw, BUTTON_H)
-	b.pressed.connect(_open_dialog)
-	add(b)
+	# Right: the two forms. Left: the folder the CSVs are saved in.
+	var x := W - MARGIN
+	for spec in [["Add new game", 220.0, _open_add_game], ["Change core stats", 250.0, _open_core_stats]]:
+		x -= spec[1]
+		_button(spec[0], Rect2(x, BUTTON_Y, spec[1], BUTTON_H), spec[2])
+		x -= 14.0
+	var folder := _button("Open data folder", Rect2(MARGIN, BUTTON_Y, 230.0, BUTTON_H),
+		func(): OS.shell_open(GameData.data_folder()))
+	folder.tooltip_text = GameData.data_folder()
+	var tx := MARGIN + 230.0 + 24.0
 	_toast = UI.label(added_message, UI.Face.ITALIC, 24, Config.GOLD_BRIGHT, HORIZONTAL_ALIGNMENT_RIGHT)
-	_toast.position = Vector2(MARGIN, BUTTON_Y)
-	_toast.size = Vector2(W - MARGIN * 2 - bw - 24, BUTTON_H)
+	_toast.position = Vector2(tx, BUTTON_Y)
+	_toast.size = Vector2(x + 14.0 - 24.0 - tx, BUTTON_H)
+	_toast.clip_text = true
+	_toast.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	add(_toast)
 	if added_message != "":
 		tween().tween_property(_toast, "modulate:a", 0.0, 1.2).set_delay(6.0)
 
 
-func _open_dialog() -> void:
+func _button(text: String, rect: Rect2, on_press: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 22)
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.focus_mode = Control.FOCUS_NONE
+	b.position = rect.position
+	b.size = rect.size
+	b.pressed.connect(on_press)
+	add(b)
+	return b
+
+
+func _open_add_game() -> void:
 	if is_instance_valid(_dialog):
 		return
-	_dialog = AddGameDialog.new(data)
-	_dialog.saved.connect(_on_saved)
-	add(_dialog)
+	var d := AddGameDialog.new(data)
+	d.saved.connect(_on_saved)
+	_dialog = d
+	add(d)
+
+
+func _open_core_stats() -> void:
+	if is_instance_valid(_dialog):
+		return
+	# Use the Muad'Dib slide's names for the stats, so both match.
+	var labels := {}
+	var lower := []
+	for sl in ceremony:
+		if sl is CoreStatsSlide:
+			labels = sl.opts.get("labels", {})
+			lower = sl.opts.get("lower_wins", [])
+			break
+	var d := CoreStatsDialog.new(data, labels, lower)
+	d.saved.connect(func(message): _on_saved(0, message))
+	_dialog = d
+	add(d)
 
 
 func _on_saved(game: int, message: String) -> void:

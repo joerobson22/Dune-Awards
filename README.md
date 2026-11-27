@@ -14,6 +14,18 @@ so adding a game or an award never means editing a slide by hand.
 
 The first open takes a few seconds while Godot imports the fonts.
 
+### Make a standalone copy (no Godot needed to run it)
+
+1. In Godot: **Editor → Manage Export Templates → Download and Install** (once, ~1 GB).
+2. **Project → Export**. The **macOS** and **Windows Desktop** presets are already set up.
+3. Pick one and click **Export Project**. It lands in `export/` (not saved to git).
+   - macOS gives a `.zip`. Unzip it to get **Dune Awards.app**. It isn't signed, so the first
+     time, right-click it and choose **Open**.
+   - Windows gives one `Dune Awards.exe`.
+
+The copy reads and saves the data in your user files (section 3), so games you add in it
+are kept, and are shared with the Godot editor on the same computer.
+
 ### Controls
 
 | Key or click | What it does |
@@ -103,6 +115,27 @@ settled, e.g. "level on 3 wins, split by total VP: 88".
 
 ## 3. The data
 
+### Where the data lives
+
+The show reads and saves its three CSVs in a **data folder in your user files**, not in the
+project. Both the Godot editor and an exported copy use the same folder:
+
+| Computer | Data folder |
+|---|---|
+| macOS | `~/Library/Application Support/Dune Awards/data` |
+| Windows | `%APPDATA%\Dune Awards\data` |
+| Linux | `~/.local/share/Dune Awards/data` |
+
+The **Open data folder** button on the stats overview opens it.
+
+- **The first run fills it.** Any CSV missing from the folder is copied in from the project's
+  own `data/` folder (or, in an exported copy, the data it was exported with).
+- **After that, the data folder wins.** Editing `data/*.csv` in the project changes nothing.
+  To start a file again from the project's copy, delete it from the data folder and restart.
+- **To back up or move the history**, copy the three CSVs out of the data folder.
+- `data/` in the project is the starting point, and what goes in git. To put games added in
+  the show into git, copy `games.csv` from the data folder back into `data/`.
+
 ### `data/games.csv`: one row per player per game
 
 ```
@@ -130,11 +163,9 @@ game,expansion,player,leader,vp,spice,solari,water,chaumurky,winner,win_method
   Boxes for a tie lower down are optional.
 - Chaumurky is a toggle; only one player can hold it.
 - The form shows who won before you add it. **Add game** (or Enter) writes four rows to
-  the end of `data/games.csv`, then every slide is rebuilt to include the game.
-- Saving works when the show is run from the Godot editor (F5). An exported copy can't
-  write into its own files.
+  the end of `games.csv` in the data folder, then every slide is rebuilt to include the game.
 
-To add a game by hand instead, add four rows with the next game number. You may leave `winner` and
+To add a game by hand instead, edit `games.csv` in the data folder: add four rows with the next game number. You may leave `winner` and
 `win_method` blank. The program then works the winner out the same way the game does: most
 VPs, then Chaumurky, then spice, solari, water. That rule was checked against all 53 games in
 the spreadsheet and agrees with every one.
@@ -165,6 +196,11 @@ The app's averages from the spreadsheet. `group` is shown above each Muad'Dib ti
 - A new stat row appears on the Muad'Dib slide automatically.
 - Write numbers without a `%` sign. Stats whose name starts with `%` show one on screen.
 - Text values (like `Fave Alliance`) are skipped by Muad'Dib.
+
+**Changing the numbers:** the **Change core stats** button on the stats overview lists every
+stat with a box per player (Fave Alliance is a drop-down). Changed boxes are outlined in gold.
+**Save** rewrites `core_stats.csv` in the data folder, and Muad'Dib and the favourite
+alliances update at once. Every number box needs a value before it will save.
 
 ---
 
@@ -315,6 +351,7 @@ The canvas is a fixed 1920 × 1080 and scales to any screen; other shapes get th
 
 ```
 project.godot                 open this in Godot
+export_presets.cfg            macOS and Windows export settings (Project → Export)
 icon.png, boot_splash.png     project icon and launch screen
 tools/render_branding.gd      redraws the icon and splash from the title art
 data/
@@ -340,11 +377,12 @@ scripts/
     vp_race_slide.gd          Shai Hulud, Treachery
     ranking_reveal_slide.gd   reusable 4th-to-1st reveal
     finale_slide.gd           all winners
-    stats_overview_slide.gd   stats overview, game record and "Add new game"
+    stats_overview_slide.gd   stats overview, game record, "Add new game", "Change core stats"
     example_custom_slide.gd   template for a slide of your own (not in the show)
   ui/                         building blocks: chart, leaderboard, award card,
                               alliance emblems, gold sparks, desert background, fonts,
-                              add_game_dialog.gd (the "Add new game" form)
+                              form_dialog.gd (shared pop-up form), add_game_dialog.gd,
+                              core_stats_dialog.gd
 fonts/                        Michroma, Cormorant Garamond, Cinzel (SIL Open Font Licence)
 ```
 
@@ -358,4 +396,7 @@ fonts/                        Michroma, Cormorant Garamond, Cinzel (SIL Open Fon
   not exactly match `players.csv` (check capitals and spaces).
 - **"core_stats.csv: … has no matching player"**: add that name to the `person` column of
   `players.csv`.
-- **Editing the CSV in Excel**: save as *CSV UTF-8*. Keep the header row as it is.
+- **Editing the CSV in Excel**: save as *CSV UTF-8*. Keep the header row as it is. Edit the
+  copy in the data folder (section 3), not the one in the project.
+- **A change to `data/*.csv` in the project doesn't show**: the show uses the data folder.
+  Delete that file from the data folder and restart to copy it in again.

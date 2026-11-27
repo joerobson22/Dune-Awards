@@ -26,13 +26,59 @@ const _FALLBACK_COLOURS := ["#D9483B", "#4FAE6E", "#5B83E0", "#E6C437", "#C98AD8
 
 ## Returns "" on success, or a message describing what went wrong.
 func load_all() -> String:
-	var err := _load_players(Config.PLAYERS_CSV)
+	var err := prepare_data_dir()
+	if err != "":
+		return err
+	err = _load_players(Config.PLAYERS_CSV)
 	if err != "":
 		return err
 	err = _load_games(Config.GAMES_CSV)
 	if err != "":
 		return err
 	return _load_core_stats(Config.CORE_STATS_CSV)
+
+
+## Makes the data folder, and copies in any CSV it is missing from the
+## project's data/ folder. This is how the data moves into a new install.
+func prepare_data_dir() -> String:
+	DirAccess.make_dir_recursive_absolute(Config.DATA_DIR)
+	for path in [Config.PLAYERS_CSV, Config.GAMES_CSV, Config.CORE_STATS_CSV]:
+		if FileAccess.file_exists(path):
+			continue
+		var source: String = Config.SEED_DIR + path.get_file()
+		if not FileAccess.file_exists(source):
+			continue
+		var out := FileAccess.open(path, FileAccess.WRITE)
+		if out == null:
+			return "Could not create %s (%s)." % [data_folder().path_join(path.get_file()),
+				error_string(FileAccess.get_open_error())]
+		out.store_buffer(FileAccess.get_file_as_bytes(source))
+		out.close()
+	return ""
+
+
+## Where the data folder is on this computer, as a normal path.
+static func data_folder() -> String:
+	return ProjectSettings.globalize_path(Config.DATA_DIR)
+
+
+## Replaces a data file in one go: writes a temporary copy, then swaps it in,
+## so a crash part-way through can never leave half a file.
+func _write_file(path: String, text: String) -> String:
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		return "Could not save %s (%s)." % [path.get_file(), error_string(FileAccess.get_open_error())]
+	f.store_string(text)
+	f.close()
+	var err := DirAccess.rename_absolute(tmp, path)
+	if err != OK and FileAccess.file_exists(path):
+		# Some systems won't rename over an existing file.
+		DirAccess.remove_absolute(path)
+		err = DirAccess.rename_absolute(tmp, path)
+	if err != OK:
+		return "Could not save %s (%s)." % [path.get_file(), error_string(err)]
+	return ""
 
 
 func _read_csv(path: String) -> Array:
@@ -225,8 +271,8 @@ func append_game(expansion: String, rows: Array) -> String:
 	var path := Config.GAMES_CSV
 	var f := FileAccess.open(path, FileAccess.READ_WRITE)
 	if f == null:
-		return "Could not open %s for writing (%s). Run the show from the Godot editor to save games." \
-			% [path, error_string(FileAccess.get_open_error())]
+		return "Could not open %s for writing (%s)." \
+			% [data_folder().path_join(path.get_file()), error_string(FileAccess.get_open_error())]
 	var n := next_game_number()
 	var d := decide_winner(rows)
 	var length := f.get_length()
@@ -244,6 +290,31 @@ func append_game(expansion: String, rows: Array) -> String:
 			"1" if r["chaumurky"] else "0", "1" if won else "0", d["method"] if won else ""]))
 	f.close()
 	return ""
+
+
+## Saves every core stat back to core_stats.csv, in the same layout:
+## one row per person per stat, stat by stat. `stats` is the same shape as
+## `core_stats`: [{group, stat, values: {player tag -> String}}].
+## Returns "" on success. Reload the data afterwards to see it.
+func save_core_stats(stats: Array) -> String:
+	var person_of := {}
+	for person in person_to_player:
+		person_of[person_to_player[person]] = person
+	var lines := PackedStringArray(["person,group,stat,value"])
+	for s in stats:
+		for p in players:
+			if not s["values"].has(p) or not person_of.has(p):
+				continue
+			lines.append(",".join([_csv(person_of[p]), _csv(s["group"]), _csv(s["stat"]),
+				_csv(s["values"][p])]))
+	return _write_file(Config.CORE_STATS_CSV, "\n".join(lines) + "\n")
+
+
+## Quotes a CSV cell if it needs it.
+func _csv(v: String) -> String:
+	if v.contains(",") or v.contains("\"") or v.contains("\n"):
+		return "\"%s\"" % v.replace("\"", "\"\"")
+	return v
 
 
 func _cell(v: int) -> String:

@@ -1,16 +1,13 @@
 class_name AddGameDialog
-extends Control
+extends FormDialog
 ## The "Add new game" form on the stats overview. Pick the expansion,
 ## then each player's leader and VPs. Spice, solari and water are only
 ## asked for when players are level; Chaumurky is a toggle. The winner is
 ## worked out with the game's rules (GameData.decide_winner) and the
-## game is added to the end of data/games.csv.
+## game is added to the end of games.csv in the data folder.
 
 signal saved(game: int, message: String)
 
-const CARD_W := 1306.0
-const CARD_H := 742.0
-const PAD := 60.0
 const COL_GAP := 22.0
 const ROW_H := 64.0
 const FIELD_H := 46.0
@@ -26,54 +23,28 @@ const COLS := [
 	{"key": "chaumurky", "text": "Chaumurky", "w": 150.0},
 ]
 
-var data: GameData
 var expansion := ""
-var _card: Panel
 var _rows: Array = []   # per player: {player, leader_pick, leader_text, fields: {key: LineEdit}, chaum}
-var _status: RichTextLabel
-var _add: Button
-var _valid := false
 
 
 func _init(game_data: GameData) -> void:
-	data = game_data
+	super(game_data)
+	card_size = Vector2(1306, 742)
 
 
-func _ready() -> void:
-	size = Vector2(1920, 1080)
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.74)
-	dim.size = size
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP  # the slide below is paused
-	add_child(dim)
-	var st := UI.panel_style(Config.GOLD, 0.8, 0.98)
-	st.set_border_width_all(2)
-	st.shadow_size = 60
-	st.shadow_color = Color(0, 0, 0, 0.7)
-	_card = UI.panel(Rect2((size - Vector2(CARD_W, CARD_H)) * 0.5, Vector2(CARD_W, CARD_H)), st)
-	add_child(_card)
-	_build()
-	_refresh()
-	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.25)
-	_rows[0]["leader_pick"].grab_focus()
+func heading() -> Array:
+	return ["Game %d" % data.next_game_number(), "Add new game"]
 
 
-func _build() -> void:
-	var inner_w := CARD_W - PAD * 2
-	var e := UI.eyebrow("Game %d" % data.next_game_number(), 14, Config.SAND_DIM)
-	e.position = Vector2(PAD, 44)
-	e.size = Vector2(inner_w, 22)
-	_card.add_child(e)
-	var t := UI.label("ADD NEW GAME", UI.Face.DISPLAY, 34, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 5)
-	t.material = UI.gold_material()
-	t.position = Vector2(PAD - 2, 68)
-	t.size = Vector2(inner_w, 52)
-	_card.add_child(t)
-	var o := Ornament.new(420)
-	o.position = Vector2(PAD, 124)
-	_card.add_child(o)
+func primary_text() -> String:
+	return "Add game"
 
+
+func first_focus() -> Control:
+	return _rows[0]["leader_pick"]
+
+
+func build_body() -> void:
 	# Expansion: one chip each, the last game's box picked to start.
 	var el := UI.eyebrow("Expansion", 12, Config.SAND_DIM)
 	el.position = Vector2(PAD, 160)
@@ -108,49 +79,11 @@ func _build() -> void:
 			var dot := Dot.new(colour)
 			dot.position = Vector2(_col_x(c["key"]) + tw + 8, hy + 7)
 			_card.add_child(dot)
-	var rule := ColorRect.new()
-	rule.color = Color(Config.GOLD, 0.3)
-	rule.position = Vector2(PAD, hy + 30)
-	rule.size = Vector2(inner_w, 1)
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(rule)
+	add_rule(hy + 30)
 	var leaders := data.leaders()
 	for i in data.players.size():
 		_rows.append(_make_row(data.players[i], hy + 40 + i * ROW_H, leaders))
 
-	_status = RichTextLabel.new()
-	_status.bbcode_enabled = true
-	_status.scroll_active = false
-	_status.fit_content = false
-	_status.position = Vector2(PAD, hy + 40 + data.players.size() * ROW_H + 14)
-	_status.size = Vector2(inner_w, 64)
-	_status.add_theme_font_override("normal_font", UI.font(UI.Face.ITALIC))
-	_status.add_theme_font_override("bold_font", UI.font(UI.Face.SERIF_BOLD))
-	_status.add_theme_font_size_override("normal_font_size", 25)
-	_status.add_theme_font_size_override("bold_font_size", 25)
-	_status.add_theme_color_override("default_color", Config.SAND_DIM)
-	_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(_status)
-
-	var by := CARD_H - 44.0 - 48.0
-	_add = Button.new()
-	_add.text = "Add game"
-	_add.size = Vector2(190, 48)
-	_add.position = Vector2(CARD_W - PAD - 190, by)
-	_add.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_add.pressed.connect(_submit)
-	_card.add_child(_add)
-	var cancel := Button.new()
-	cancel.text = "Cancel"
-	cancel.size = Vector2(150, 48)
-	cancel.position = Vector2(CARD_W - PAD - 190 - 14 - 150, by)
-	cancel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	cancel.pressed.connect(close)
-	_card.add_child(cancel)
-	var keys := UI.label("Tab moves between boxes  ·  Enter adds  ·  Esc cancels", UI.Face.ITALIC, 20, Config.SAND_FAINT)
-	keys.position = Vector2(PAD, by)
-	keys.size = Vector2(600, 48)
-	_card.add_child(keys)
 
 
 func _col_x(key: String) -> float:
@@ -215,24 +148,18 @@ func _make_row(player: String, y: float, leaders: Array) -> Dictionary:
 			pick.visible = false
 			typed.visible = true
 			typed.grab_focus()
-		_refresh())
-	typed.text_changed.connect(func(_t): _refresh())
+		refresh())
+	typed.text_changed.connect(func(_t): refresh())
 	# Back to the list if the typed name is left empty.
 	typed.focus_exited.connect(func():
 		if typed.text.strip_edges() == "":
 			typed.visible = false
 			pick.visible = true
 			pick.select(0)
-			_refresh())
+			refresh())
 
 	for key in ["vp", "spice", "solari", "water"]:
-		var f := LineEdit.new()
-		f.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		f.max_length = 3
-		f.add_theme_font_size_override("font_size", 24)
-		f.position = Vector2(_col_x(key), fy)
-		f.size = Vector2(_col_w(key), FIELD_H)
-		f.text_changed.connect(_on_number.bind(f))
+		var f := number_field(Rect2(_col_x(key), fy, _col_w(key), FIELD_H))
 		_card.add_child(f)
 		row["fields"][key] = f
 
@@ -255,19 +182,6 @@ func _make_row(player: String, y: float, leaders: Array) -> Dictionary:
 	return row
 
 
-## Keeps number boxes to digits only.
-func _on_number(text: String, f: LineEdit) -> void:
-	var digits := ""
-	for c in text:
-		if c >= "0" and c <= "9":
-			digits += c
-	if digits != text:
-		var caret := f.caret_column
-		f.text = digits
-		f.caret_column = mini(caret, digits.length())
-	_refresh()
-
-
 ## Only one player can hold Chaumurky.
 func _on_chaumurky(on: bool, ch: Button) -> void:
 	ch.text = "Held" if on else "Not held"
@@ -276,7 +190,7 @@ func _on_chaumurky(on: bool, ch: Button) -> void:
 			if r["chaum"] != ch and r["chaum"].button_pressed:
 				r["chaum"].set_pressed_no_signal(false)
 				r["chaum"].text = "Not held"
-	_refresh()
+	refresh()
 
 
 # ── Reading and checking the form ────────────────────────────────────
@@ -315,11 +229,11 @@ func _names(indices: Array) -> String:
 	return ", ".join(names.slice(0, -1)) + " and " + names[-1]
 
 
-func _refresh() -> void:
+func refresh() -> void:
 	var res := _results()
 	var needed := {}   # "index:key" -> true (required) / false (optional)
 	var message := ""
-	_valid = false
+	var valid := false
 
 	var no_leader := range(res.size()).filter(func(i): return res[i]["leader"] == "")
 	var no_vp := range(res.size()).filter(func(i): return res[i]["vp"] < 0)
@@ -349,7 +263,7 @@ func _refresh() -> void:
 				level = "still level on %s" % Config.TIEBREAK_ORDER[Config.TIEBREAK_ORDER.find(key) - 1]
 			message = "%s are %s. Enter their %s to settle it." % [_names(who), level, key]
 		else:
-			_valid = true
+			valid = true
 			var d := data.decide_winner(res)
 			var how := _method_text(d["method"])
 			var colour: Color = Config.METHOD_COLOURS.get(d["method"], Config.GOLD_BRIGHT)
@@ -361,8 +275,7 @@ func _refresh() -> void:
 				var who := optional.filter(func(a): return a["key"] == key).map(func(a): return a["index"])
 				message += "  %s are level for a lower place: add their %s to split them, if you have it." \
 					% [_names(who), key]
-	_status.text = message
-	_add.disabled = not _valid
+	set_status(message, valid)
 	_style_fields(needed)
 
 
@@ -385,15 +298,12 @@ func _style_fields(needed: Dictionary) -> void:
 
 # ── Saving ───────────────────────────────────────────────────────────
 
-func _submit() -> void:
-	_refresh()
-	if not _valid:
-		return
+func submit() -> void:
 	var res := _results()
 	var n := data.next_game_number()
 	var err := data.append_game(expansion, res)
 	if err != "":
-		_status.text = "[color=#%s]%s[/color]" % [Config.RECORD_COLOUR.to_html(false), err]
+		show_error(err)
 		return
 	var d := data.decide_winner(res)
 	saved.emit(n, "Game %d added: %s won on %s." % [n, data.name_of(res[d["index"]]["player"]),
@@ -404,30 +314,6 @@ func _submit() -> void:
 ## "VP", "Chaumurky", or the resource in lower case ("spice").
 func _method_text(method: String) -> String:
 	return method if method in ["VP", "Chaumurky"] else method.to_lower()
-
-
-func close() -> void:
-	var tw := create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.2)
-	tw.finished.connect(queue_free)
-
-
-func _input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed and not event.echo):
-		return
-	if event.keycode == KEY_ESCAPE:
-		# Close an open leader list first, then the form.
-		for r in _rows:
-			if r["leader_pick"].get_popup().visible:
-				return
-		get_viewport().set_input_as_handled()
-		close()
-	elif event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
-		for r in _rows:
-			if r["leader_pick"].get_popup().visible:
-				return
-		get_viewport().set_input_as_handled()
-		_submit()
 
 
 ## A small coloured dot beside a column header.
